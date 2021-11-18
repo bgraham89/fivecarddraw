@@ -257,7 +257,6 @@ class Dealer(Table):
         player.chips -= amount
         self.pot[player.name] += amount       
                 
-        
     def Payout(self):
         winners = {}
         
