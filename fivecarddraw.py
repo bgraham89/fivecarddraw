@@ -9,16 +9,17 @@ class Card(object):
         self.SUITS = ("♠","♡","♢","♣")
         
         self.MASK = "xxxAKQJT98765432♣♢♡♠RRRRxxPPPPPP" 
-        self.R = range(13)
-        self.P = (2,3,5,7,11,13,17,19,23,29,31,37,41)
+        self.RANKS = range(13)
+        self.PRIMES = (2,3,5,7,11,13,17,19,23,29,31,37,41)
         
-        self.prime = self.P[value]
-        self.rank = self.R[value] << 8
-        self.suit = (2 ** suit) << 12
-        self.value = (2 ** value) << 16
+        self.prime = self.PRIMES[value]
+        self._rank = self.RANKS[value] << 8
+        self._suit = (2 ** suit) << 12
+        self._value = (2 ** value) << 16
         
-        self.b = self.prime + self.rank + self.suit + self.value
+        self.b = self.prime + self._rank + self._suit + self._value
     
+        self.value_i, self.suit_i = value, suit
         self.value_r, self.suit_r = self.VALUES[value], self.SUITS[suit]
     
     def __repr__(self):
@@ -29,7 +30,7 @@ class Deck(list):
     def __init__(self):
         self.extend([
             Card(value, suit) for suit in range(4) for value in range(13)])
-    
+
     def Cut(self):
         index = randint(0, len(self)-1)
         top, bottom = self[index:], self[:index]
@@ -42,6 +43,10 @@ class Deck(list):
         if choice([True, False]):
             self.Cut()
             self.Shuffle()
+
+    def Deal(self):
+        for card in (card for card in self):
+            yield card
                 
 
 class Player(object):
@@ -135,40 +140,41 @@ class Dealer(Table):
         super().__init__(players)
         self.VALUES = {char : 2 ** i for i, char in enumerate("23456789TJQKA")}
         self.PRIMES = {
-            char : p for char, p in zip("23456789TJQKA", Card(0,0).P)}
+            char : p for char, p in zip("23456789TJQKA", Card(0,0).PRIMES)}
         
         self.FLUSH_RANKS = {
             self.VALUES[line[4]] | self.VALUES[line[5]] | 
             self.VALUES[line[6]] | self.VALUES[line[7]] | 
             self.VALUES[line[8]] : int(str(line)[11:]) 
-            for line in open("flush lookup.txt", "r")}
+            for line in open("lookup-tables/flush lookup.txt", "r")}
         
         self.UNIQUE_FIVE_RANKS = {
             self.VALUES[line[4]] | self.VALUES[line[5]] | 
             self.VALUES[line[6]] | self.VALUES[line[7]] | 
             self.VALUES[line[8]] : int(str(line)[11:]) 
-            for line in open("unique five lookup.txt", "r")}
+            for line in open("lookup-tables/unique five lookup.txt", "r")}
         
         self.DUPE_RANKS = {
             self.PRIMES[line[4]] * self.PRIMES[line[5]] * 
             self.PRIMES[line[6]] * self.PRIMES[line[7]] * 
             self.PRIMES[line[8]] : int(str(line)[11:]) 
-            for line in open("dupe lookup.txt", "r")}
+            for line in open("lookup-tables/dupe lookup.txt", "r")}
         
         self.ante = 0
         
-        self.player_0 = self[0]
+        self.card = self.deck.Deal()
+        self.button_next = self[0]
         
     def MoveButton(self):
-        if self[0] == self.player_0:
+        if self.button_next == self[0]:
             self.append(self.pop(0))
-            self.player_0 = self[0]
+            self.button_next = self[0]
         
     def DealHands(self):
         cards = {player.name : [] for player in self}
         for c in range(5):
             for player in self:
-                cards[player.name].append(self.deck.pop())
+                cards[player.name].append(next(self.card))
                 if c == 4:
                     player.hand = Hand(cards[player.name])
                     
@@ -210,16 +216,21 @@ class Dealer(Table):
     def CollectCards(self):
         for player in self:
             player.hand = None
-            
-        self.deck = Deck()
                 
     def ShuffleDeck(self):
         self.deck.Shuffle()
+        self.card = self.deck.Deal()
         
     def TakeAnte(self):
-        for player in self:
-            player.chips -= self.ante
-            self.pot[player.name] = self.ante
+        for player in self:  
+            if player.chips >= self.ante:
+                player.chips -= self.ante
+                self.pot[player.name] = self.ante
+            else:
+                self.pot[player.name] = player.chips
+                player.chips = 0
+                print(f"The ante forced {player} to go all-in!")
+                player.has_allin = True
     
     def TakeBet(self, player, amount):
         min_to_call = max(self.pot.values()) - self.pot[player.name]
@@ -459,9 +470,7 @@ class FiveCardDraw(Dealer):
                 
                 min_to_call = max(self.pot.values()) - self.pot[player.name]
                 
-                if not player.chips:
-                    options = ["check"]
-                elif not min_to_call:
+                if not min_to_call:
                     options = ["check", "raise", "allin"]
                 elif player.chips <= min_to_call:
                     options = ["fold", "allin"]
@@ -512,7 +521,7 @@ class FiveCardDraw(Dealer):
             
             new_cards = []
             for _ in range(len(discarded_cards)):
-                new_cards.append(self.deck.pop())
+                new_cards.append(next(self.card))
                 
             player.hand = Hand(kept_cards + new_cards)
             if type(player) == Human:
@@ -550,4 +559,5 @@ class Simulation(FiveCardDraw):
             return False
         
         return super().NewHand()
-        
+
+Simulation()
