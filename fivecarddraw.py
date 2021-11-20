@@ -34,15 +34,21 @@ class Deck(list):
     def Cut(self):
         index = randint(0, len(self)-1)
         top, bottom = self[index:], self[:index]
+
         self.clear()
         self.extend(top)
         self.extend(bottom)
+
+        return self
         
     def Shuffle(self):
         shuffle(self)
+
         if choice([True, False]):
             self.Cut()
             self.Shuffle()
+            
+        return self
 
     def Deal(self):
         for card in (card for card in self):
