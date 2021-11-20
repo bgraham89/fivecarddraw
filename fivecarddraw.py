@@ -559,5 +559,3 @@ class Simulation(FiveCardDraw):
             return False
         
         return super().NewHand()
-
-Simulation()
