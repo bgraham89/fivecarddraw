@@ -12,7 +12,7 @@ A five card draw (poker variant) game engine.
 
 Essentially Table() is a hub of game-related information, including a collection of Player()'s (Human() or BasicAI()) and a Deck() of Card()'s.
 
-Dealer() expands upon the information, and adds the game-related functions.
+Dealer() expands upon the information, and adds the game-related functions. More information can be found in the notebooks.
 
 # About the Hand Evaluator
 
