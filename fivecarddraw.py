@@ -245,6 +245,7 @@ class Dealer(Table):
                 player.chips = 0
                 print(f"The ante forced {player} to go all-in!")
                 player.has_allin = True
+        print("\n")
     
     def TakeBet(self, player, amount):
         min_to_call = max(self.pot.values()) - self.pot[player.name]
@@ -339,7 +340,7 @@ class Dealer(Table):
                       f"with {self[i].hand} ({rank})")
                 del winners[self[i].name]
             elif not self[i].has_folded:
-                if rank <= best_rank:
+                if rankings[self[i].name] <= best_rank:
                     best_rank = rank
                     print(f"{self[i]} mucked with {self[i].hand} ({rank})")
                 else:
@@ -442,15 +443,15 @@ class FiveCardDraw(Dealer):
         for name in ["Phil Ivey", "Gus Hanson", "Dan Negreanu", "Phil Hellmuth"]:
             players.append(BasicAI(name))
             
-        self.player = Human(input("What's your name?"))
-        players.append(self.player)
+        player = Human(input("What's your name?"))
+        players.append(player)
         return players
     
     def NewHand(self):
         human = [player for player in self if type(player) == Human]
         
         if any(human) and not human[0].chips:
-            print(f"Game over {self.player}, better luck next time.")
+            print(f"Game over {human[0]}, better luck next time.")
             return False
         
         for player in [player for player in self if not player.chips]:
@@ -458,7 +459,7 @@ class FiveCardDraw(Dealer):
             self.remove(player)
             
         if not len(self) - 1:
-            print("You've gone and done it; you've won. Well played.")
+            print(f"{self[0]} has done it. Well played.")
             return False
         
         print("\n------New Round------")
