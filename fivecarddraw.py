@@ -169,9 +169,12 @@ class Dealer(Table):
         self.ante = 0
         
         self.card = self.deck.Deal()
-        self.button_next = self[0]
+        self.button_next = []
         
     def MoveButton(self):
+        if not self.button_next:
+            self.button_next = self[0]
+            
         if self.button_next == self[0]:
             self.append(self.pop(0))
             self.button_next = self[0]
@@ -232,6 +235,7 @@ class Dealer(Table):
             if player.chips >= self.ante:
                 player.chips -= self.ante
                 self.pot[player.name] = self.ante
+                print(f"{player} paid the ante.")
             else:
                 self.pot[player.name] = player.chips
                 player.chips = 0
