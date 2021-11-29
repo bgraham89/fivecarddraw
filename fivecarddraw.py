@@ -232,10 +232,14 @@ class Dealer(Table):
         
     def TakeAnte(self):
         for player in self:  
-            if player.chips >= self.ante:
+            if player.chips > self.ante:
                 player.chips -= self.ante
                 self.pot[player.name] = self.ante
-                print(f"{player} paid the ante.")
+                print(f"{player} paid {self.ante} chips for the ante.")
+            elif player.chips == self.ante:
+                player.chips -= self.ante
+                self.pot[player.name] = self.ante
+                print(f"The ante forced {player} to go all-in!")
             else:
                 self.pot[player.name] = player.chips
                 player.chips = 0
@@ -327,7 +331,7 @@ class Dealer(Table):
             print(f"{players_rem[0]} won {winners[players_rem[0].name]} chips.")
             winners.clear()
         
-        i = 0
+        i, best_rank = 0, 10000
         while winners:
             rank = self.Lookup(rankings[self[i].name])
             if self[i].name in winners.keys():
@@ -335,7 +339,11 @@ class Dealer(Table):
                       f"with {self[i].hand} ({rank})")
                 del winners[self[i].name]
             elif not self[i].has_folded:
-                print(f"{self[i]} mucked with {self[i].hand} ({rank})")
+                if rank <= best_rank:
+                    best_rank = rank
+                    print(f"{self[i]} mucked with {self[i].hand} ({rank})")
+                else:
+                    print(f"{self[i]} mucked.")   
             i += 1
         while i < len(self):
             if not self[i].has_folded: 
@@ -434,7 +442,7 @@ class FiveCardDraw(Dealer):
         for name in ["Phil Ivey", "Gus Hanson", "Dan Negreanu", "Phil Hellmuth"]:
             players.append(BasicAI(name))
             
-        player = Human(input("What's your name?"))
+        self.player = Human(input("What's your name?"))
         players.append(player)
         return players
     
