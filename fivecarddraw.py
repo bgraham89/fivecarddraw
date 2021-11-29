@@ -443,7 +443,7 @@ class FiveCardDraw(Dealer):
             players.append(BasicAI(name))
             
         self.player = Human(input("What's your name?"))
-        players.append(player)
+        players.append(self.player)
         return players
     
     def NewHand(self):
