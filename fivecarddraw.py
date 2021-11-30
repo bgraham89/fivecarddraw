@@ -346,7 +346,7 @@ class Dealer(Table):
                 else:
                     print(f"{self[i]} mucked.")   
             i += 1
-        while i < len(self):
+        while i < len(self) and not len(players_rem) < 2:
             if not self[i].has_folded: 
                 print(f"{self[i]} mucked.")
             i += 1
