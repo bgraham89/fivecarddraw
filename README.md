@@ -2,7 +2,7 @@
 
 This a long-term home-project; a five card draw (poker variant) game engine, sparked from curiosity. The engine so far has been created using python, and the main game file is [fivecarddraw.py](fivecarddraw.py).
 
-The game is currently playable, in the current, first version, and is one-player, text-based, and using simple AI. The plan is to upgrade all of these features, and to learn the details required for each, as time allows.
+The game is currently playable; and is one-player, text-based, and uses a simple AI. The plan is to upgrade all of these features, and to learn the details required for each, as time allows.
 
 For more details of how things have been implemented, check out the [notebooks](notebooks) folder of this repository.
 
