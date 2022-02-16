@@ -9,11 +9,10 @@ class Card(object):
         self.SUITS = ("♠","♡","♢","♣")
         
         self.MASK = "xxxAKQJT98765432♣♢♡♠RRRRxxPPPPPP" 
-        self.RANKS = range(13)
         self.PRIMES = (2,3,5,7,11,13,17,19,23,29,31,37,41)
         
         self._prime = self.PRIMES[value]
-        self._rank = self.RANKS[value] << 8
+        self._rank = value << 8
         self._suit = (2 ** suit) << 12
         self._value = (2 ** value) << 16
         
