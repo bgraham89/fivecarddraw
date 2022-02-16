@@ -1,5 +1,5 @@
 from itertools import groupby
-from random import choice, randint, shuffle
+from random import choice, shuffle
 
 
 class Card(object):
@@ -25,34 +25,31 @@ class Card(object):
         return self.value_r + self.suit_r
     
 
-class Deck(list):
+class Deck(object):
     def __init__(self):
-        self.extend([
-            Card(value, suit) for suit in range(4) for value in range(13)])
+        self.VALUES_I = {v : i for i, v in enumerate(Card(0,0).VALUES)}
+        self.SUITS_I = {s : i for i, s in enumerate(Card(0,0).SUITS)}
 
-    def Cut(self):
-        index = randint(0, len(self)-1)
-        top, bottom = self[index:], self[:index]
+        self.state = [v + s for v in self.VALUES_I.keys() for s in self.SUITS_I.keys()]
+        self.i = 0
 
-        self.clear()
-        self.extend(top)
-        self.extend(bottom)
+    def __iter__(self):
+        return self.state
 
-        return self
-        
+    def __next__(self):
+        try:
+            top_card = self.state[self.i]
+            card_value, card_suit = self.VALUES_I[top_card[:-1]], self.SUITS_I[top_card[-1]]
+        except IndexError:
+            raise StopIteration()
+
+        self.i += 1
+
+        return Card(card_value, card_suit)
+
     def Shuffle(self):
-        shuffle(self)
-
-        if choice([True, False]):
-            self.Cut()
-            self.Shuffle()
-            
-        return self
-
-    def Deal(self):
-        for card in (card for card in self):
-            yield card
-                
+        shuffle(self.state)
+        self.i = 0
 
 class Player(object):
     def __init__(self, name):
@@ -167,7 +164,6 @@ class Dealer(Table):
         
         self.ante = 0
         
-        self.card = self.deck.Deal()
         self.button_next = []
         
     def MoveButton(self):
@@ -182,7 +178,7 @@ class Dealer(Table):
         cards = {player.name : [] for player in self}
         for c in range(5):
             for player in self:
-                cards[player.name].append(next(self.card))
+                cards[player.name].append(next(self.deck))
                 if c == 4:
                     player.hand = Hand(cards[player.name])
                     
@@ -227,7 +223,6 @@ class Dealer(Table):
                 
     def ShuffleDeck(self):
         self.deck.Shuffle()
-        self.card = self.deck.Deal()
         
     def TakeAnte(self):
         for player in self:  
@@ -340,7 +335,7 @@ class Dealer(Table):
                 del winners[self[i].name]
             elif not self[i].has_folded:
                 if rankings[self[i].name] <= best_rank:
-                    best_rank = rank
+                    best_rank = rankings[self[i].name]
                     print(f"{self[i]} mucked with {self[i].hand} ({rank})")
                 else:
                     print(f"{self[i]} mucked.")   
@@ -539,7 +534,7 @@ class FiveCardDraw(Dealer):
             
             new_cards = []
             for _ in range(len(discarded_cards)):
-                new_cards.append(next(self.card))
+                new_cards.append(next(self.deck))
                 
             player.hand = Hand(kept_cards + new_cards)
             if type(player) == Human:
