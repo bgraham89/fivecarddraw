@@ -12,12 +12,12 @@ class Card(object):
         self.RANKS = range(13)
         self.PRIMES = (2,3,5,7,11,13,17,19,23,29,31,37,41)
         
-        self.prime = self.PRIMES[value]
+        self._prime = self.PRIMES[value]
         self._rank = self.RANKS[value] << 8
         self._suit = (2 ** suit) << 12
         self._value = (2 ** value) << 16
         
-        self.b = self.prime + self._rank + self._suit + self._value
+        self.b = self._prime + self._rank + self._suit + self._value
     
         self.value_i, self.suit_i = value, suit
         self.value_r, self.suit_r = self.VALUES[value], self.SUITS[suit]

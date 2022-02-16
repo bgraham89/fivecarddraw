@@ -1,37 +1,26 @@
 # fivecarddraw
-A five card draw (poker variant) game engine.
 
-# How to use
-```from fivecarddraw import FiveCardDraw, Simulation```
+This a long-term home-project; a five card draw (poker variant) game engine, sparked from curiosity. The engine so far has been created using python, and the main game file is [fivecarddraw.py](fivecarddraw.py).
 
-```FiveCardDraw()``` This begins a game of five card draw for 1-player and 4 different ai.
+The game is currently playable, in the current, first version, and is one-player, text-based, and using simple AI. The plan is to upgrade all of these features, and to learn the details required for each, as time allows.
 
-```Simulation()``` This spectates 5 different ai play a game of five card draw poker.
+For more details of how things have been implemented, check out the [notebooks](notebooks) folder of this repository.
 
-# About the Classes
+## Special Thanks
 
-Essentially Table() is a hub of game-related information, including a collection of Player()'s (Human() or BasicAI()) and a Deck() of Card()'s.
+A special thanks should go to [Kevin Suffecool](https://suffe.cool/) for his exploration of the combinatorics of poker.
 
-Dealer() expands upon the information, and adds the game-related functions. More information can be found in the notebooks.
+* The ```Dealer.EvaluateHands()``` method is an intepretation of [Cactus Kev's Poker Hand Evaluator](http://suffe.cool/poker/evaluator.html).
 
-# About the Hand Evaluator
-
-The Dealer.EvaluateHands() method is an intepretation of "Cactus Kev's Poker Hand Evaluator".
-
-The evaluator makes use of the binary encoding of Card()'s using Card.MASK. (More details of the formula can be found here: http://suffe.cool/poker/evaluator.html)
-
-The evaluator also makes use Dealer.FLUSH_LOOKUP, Dealer.UNIQUE_FIVE_LOOKUP, and Dealer.DUPE_LOOKUP which are hand rank memos.
-
-The memos are populated from tables stored in the flush_lookup.txt, unique_five_lookup.txt and dupe_lookup.txt files, scraped from here: http://suffe.cool/poker/7462.html.
-
-# About the UI
-
-FiveCardDraw() uses a text-based (console) UI.
-
-# About the AI
-
-The BasicAI() class is the most basic ai possible for a poker engine, making decisions randomly.
-
-# License
+## License
 
 This project is licensed under the MIT License - see the LICENSE.md file for details
+
+## Techstack
+
+This repositiory makes use of the following:
+<div style="display: flex">
+  <a href="https://jupyter.org/" target="_blank"><img src="https://raw.githubusercontent.com/bgraham89/bgraham89/a6857c358a092cc3e8b11a8bb542e9563e69244b/techstack/jupyter.svg" width="32"></a>
+  <a href="https://daringfireball.net/projects/markdown/" target="_blank"><img src="https://raw.githubusercontent.com/bgraham89/bgraham89/a6857c358a092cc3e8b11a8bb542e9563e69244b/techstack/markdown.svg" width="32"></a>
+  <a href="https://www.python.org/" target="_blank"><img src="https://raw.githubusercontent.com/bgraham89/bgraham89/a6857c358a092cc3e8b11a8bb542e9563e69244b/techstack/python.svg" width="32"></a>
+</div>
