@@ -578,3 +578,11 @@ class Simulation(FiveCardDraw):
             return False
         
         return super().NewHand()
+
+if __name__ == "__main__":
+    prompt = "Press 1 to play, or 0 to spectate."
+    answer = input(prompt)
+    if answer:
+        FiveCardDraw()
+    else:
+        Simulation()
