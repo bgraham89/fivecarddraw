@@ -1,6 +1,6 @@
 # Lookup Tables
 
-This folder contains information that is used to populate some memos in the ```Dealer``` class upon initialisation. The memos essentially store a numerical score for each possible poker hand, which provides a mechanism to rank players hands, efficiently. The lookup tables themselves are stored in tsv format.
+This folder contains information that is used to populate some memos in the ```Dealer``` class upon initialisation. The memos essentially store a numerical score for each possible poker hand, which provides a mechanism to rank players hands, efficiently. More info can be found in [hand.ipynb](../notebooks/hand.ipynb) notebook. The lookup tables themselves are stored in a tab-seperated-values format.
 
 ## Special Thanks
 
