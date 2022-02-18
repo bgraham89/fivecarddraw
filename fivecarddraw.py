@@ -58,6 +58,13 @@ class Deck(object):
             self.t = 0
         return self
 
+    def AmountRemaining(self):
+        return 52 - self.t
+
+    def RestartIterator(self):
+        self.t = 0
+        return self
+
 
 class Player(object):
     def __init__(self, name):
