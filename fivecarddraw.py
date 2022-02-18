@@ -34,26 +34,26 @@ class Card(object):
 class Deck(object):
     def __init__(self):
         self.state = [Card(v, s) for v in range(13) for s in range(4)]
-        self.i = 0
+        self.t = 0
 
     def __repr__(self):
-        return self.state[self.i:]
+        return self.state[self.t:]
 
     def __iter__(self):
         return self.state
 
     def __next__(self):
         try:
-            top_card = self.state[self.i]
+            top_card = self.state[self.t]
         except IndexError:
             raise StopIteration()
 
-        self.i += 1
+        self.t += 1
         return top_card
 
     def Shuffle(self):
         shuffle(self.state)
-        self.i = 0
+        self.t = 0
         return self
 
 
