@@ -37,7 +37,7 @@ class Deck(object):
         self.t = 0
 
     def __repr__(self):
-        return self.state[self.t:]
+        return str(self.state[self.t:])
 
     def __iter__(self):
         return self.state
