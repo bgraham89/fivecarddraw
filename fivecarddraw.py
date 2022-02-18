@@ -58,7 +58,7 @@ class Deck(object):
             self.t = 0
         return self
 
-    def AmountRemaining(self):
+    def CountRemaining(self):
         return 52 - self.t
 
     def RestartIterator(self):
