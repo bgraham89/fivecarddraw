@@ -4,12 +4,18 @@ from random import choice, shuffle
 
 class Card(object):
     def __init__(self, value, suit):
+        try:
+            value %= 13
+            suit %= 4
+        except TypeError:
+            raise Exception("Card objects only allow integers as arguments.")
+
         self.VALUES = (
             "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
         self.SUITS = ("♠","♡","♢","♣")
         
         self.MASK = "xxxAKQJT98765432♣♢♡♠RRRRxxPPPPPP" 
-        self.PRIMES = (2,3,5,7,11,13,17,19,23,29,31,37,41)
+        self.PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41)
         
         self._prime = self.PRIMES[value]
         self._rank = value << 8
@@ -27,11 +33,11 @@ class Card(object):
 
 class Deck(object):
     def __init__(self):
-        self.VALUES_I = {v : i for i, v in enumerate(Card(0,0).VALUES)}
-        self.SUITS_I = {s : i for i, s in enumerate(Card(0,0).SUITS)}
-
-        self.state = [v + s for v in self.VALUES_I.keys() for s in self.SUITS_I.keys()]
+        self.state = [Card(v, s) for v in range(13) for s in range(4)]
         self.i = 0
+
+    def __repr__(self):
+        return self.state[self.i:]
 
     def __iter__(self):
         return self.state
@@ -39,17 +45,17 @@ class Deck(object):
     def __next__(self):
         try:
             top_card = self.state[self.i]
-            card_value, card_suit = self.VALUES_I[top_card[:-1]], self.SUITS_I[top_card[-1]]
         except IndexError:
             raise StopIteration()
 
         self.i += 1
-
-        return Card(card_value, card_suit)
+        return top_card
 
     def Shuffle(self):
         shuffle(self.state)
         self.i = 0
+        return self
+
 
 class Player(object):
     def __init__(self, name):
