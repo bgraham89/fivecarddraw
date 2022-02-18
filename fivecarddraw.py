@@ -26,9 +26,10 @@ class Card(object):
     
         self.value_i, self.suit_i = value, suit
         self.value_r, self.suit_r = self.VALUES[value], self.SUITS[suit]
+        self.r = self.value_r + self.suit_r
     
     def __repr__(self):
-        return self.value_r + self.suit_r
+        return self.r
     
 
 class Deck(object):
@@ -51,9 +52,10 @@ class Deck(object):
         self.t += 1
         return top_card
 
-    def Shuffle(self):
+    def Shuffle(self, reset=True):
         shuffle(self.state)
-        self.t = 0
+        if reset:
+            self.t = 0
         return self
 
 
