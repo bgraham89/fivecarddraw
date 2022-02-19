@@ -1,3 +1,4 @@
+from functools import reduce
 from itertools import groupby
 from random import choice, shuffle
 
@@ -64,6 +65,103 @@ class Deck(object):
     def RestartIterator(self):
         self.t = 0
         return self
+
+class HandTracker(object):
+    def __init__(self):
+        self.DV = {char : 2 ** i for i, char in enumerate("23456789TJQKA")}
+        self.DP = {char : p for p, char in zip(Card(0,0).PRIMES, "23456789TJQKA")}
+
+        self.LoadLookupTables()
+
+        self.CLASSES = (
+            "High card", 
+            "pair", 
+            "two pair", 
+            "three of a kind", 
+            "straight", 
+            "flush", 
+            "full house",
+            "four of a kind" 
+            "straight flush", 
+            "royal flush")
+
+        self.BOUNDARIES = (6186, 3326, 2468, 1610, 1600, 323, 167, 11, 2, 1)
+
+        self.deck = Deck()
+        self.hands = {}
+
+    def DealHands(self, names):
+        self.hands = {name : {"cards" : []} for name in names}
+        for _ in range(5):
+            for name in names:
+                self.hands[name]["cards"].append(next(self.deck))
+        return self.hands
+    
+    def CollectHands(self):
+        self.hands = {}
+        self.deck.Shuffle()
+        return self.deck
+
+    def CheckFlush(self, cards):
+        suit_mask = 15 << 12
+        has_flush = reduce(lambda x, y : x&y, map(lambda x : x.b, cards)) & suit_mask
+        return bool(has_flush)
+
+    def CheckUnique5(self, cards):
+        values = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
+        has_unique5 = bin(values).count("1") == 5
+        return has_unique5
+
+    def LoadLookupTables(self):
+        load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[x]], "45678"))
+        load_p = reduce(lambda x, y : x*y, map(lambda x : self.DP[line[x]], "45678"))
+
+        self.FLUSH_RANKS = {}
+        with open("lookup-tables/flush lookup.txt", "r") as file:
+            for line in file:
+                self.FLUSH_RANKS[load_v] = int(str(line)[11:])
+
+        self.UNIQUE5_RANKS = {}
+        with open("lookup-tables/unique five lookup.txt", "r") as file:
+            for line in file:
+                self.UNIQUE5_RANKS[load_v] = int(str(line)[11:])
+
+        self.DUPE_RANKS = {}
+        with open("lookup-tables/dupe lookup.txt", "r") as file:
+            for line in file:
+                self.DUPE_RANKS[load_p] = int(str(line)[11:])
+
+    def EvaluateHands(self):
+        for name in self.hands.keys():
+            if self.CheckFlush(self.hands[name]["cards"]):
+                key = reduce(lambda x, y : x|y, map(lambda x : x.b, self.hands[name]["cards"])) >> 16
+                self.hands[name]["rank_n"] = self.FLUSH_RANKS[key]
+            elif self.CheckUnique5(self.hands[name]["cards"]):
+                key = reduce(lambda x, y : x|y, map(lambda x : x.b, self.hands[name]["cards"])) >> 16
+                self.hands[name]["rank_n"] = self.UNIQUE5_RANKS[key]
+            else:
+                key = reduce(lambda x, y : x*y, map(lambda x : x.b & 255, self.hands[name]["cards"]))
+                self.hands[name]["rank_n"] = self.DUPE_RANKS[key]
+
+            c = 10 - len(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES))
+            self.hands[name["rank_c"]] = self.CLASSES[c]
+        return self.hands
+
+    def CheckPerformance(self, cards):
+        if self.CheckFlush(cards):
+            key = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
+            rank_n = self.FLUSH_RANKS[key]
+        elif self.CheckUnique5(cards):
+            key = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
+            rank_n = self.UNIQUE5_RANKS[key]
+        else:
+            key = reduce(lambda x, y : x*y, map(lambda x : x.b & 255, cards))
+            rank_n = self.DUPE_RANKS[key]
+
+        c = 10 - len(filter(lambda x : rank_n >= x, self.BOUNDARIES))
+        rank_c = self.CLASSES[c]
+
+        return rank_c, rank_n
 
 
 class Player(object):
