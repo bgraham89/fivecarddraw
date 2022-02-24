@@ -66,6 +66,7 @@ class Deck(object):
         self.t = 0
         return self
 
+
 class HandTracker(object):
     def __init__(self):
         self.DV = {char : 2 ** i for i, char in enumerate("23456789TJQKA")}
@@ -87,20 +88,47 @@ class HandTracker(object):
 
         self.BOUNDARIES = (6186, 3326, 2468, 1610, 1600, 323, 167, 11, 2, 1)
 
-        self.deck = Deck()
+        self.DECK = Deck()
+        self.DECK.Shuffle()
+
         self.hands = {}
 
     def DealHands(self, names):
         self.hands = {name : {"cards" : []} for name in names}
         for _ in range(5):
             for name in names:
-                self.hands[name]["cards"].append(next(self.deck))
+                self.hands[name]["cards"].append(next(self.DECK))
         return self.hands
+
+    def EditHand(self, name, discards):
+        self.hands[name]["cards"] = list(filter(lambda x : x not in discards, self.hands[name]["cards"]))
+        while len(self.hands[name]["cards"]) < 5:
+            self.hands[name]["cards"].append(next(self.DECK))
+        return self.hands[name]["cards"]
     
     def CollectHands(self):
         self.hands = {}
-        self.deck.Shuffle()
-        return self.deck
+        self.DECK.Shuffle()
+        return self.DECK
+
+    def LoadLookupTables(self):
+        self.FLUSH_RANKS = {}
+        with open("lookup-tables/flush lookup.txt", "r") as file:
+            for line in file:
+                load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[int(x)]], "45678"))
+                self.FLUSH_RANKS[load_v] = int(str(line)[11:])
+
+        self.UNIQUE5_RANKS = {}
+        with open("lookup-tables/unique five lookup.txt", "r") as file:
+            for line in file:
+                load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[int(x)]], "45678"))
+                self.UNIQUE5_RANKS[load_v] = int(str(line)[11:])
+
+        self.DUPE_RANKS = {}
+        with open("lookup-tables/dupe lookup.txt", "r") as file:
+            for line in file:
+                load_p = reduce(lambda x, y : x*y, map(lambda x : self.DP[line[int(x)]], "45678"))
+                self.DUPE_RANKS[load_p] = int(str(line)[11:])
 
     def CheckFlush(self, cards):
         suit_mask = 15 << 12
@@ -112,42 +140,29 @@ class HandTracker(object):
         has_unique5 = bin(values).count("1") == 5
         return has_unique5
 
-    def LoadLookupTables(self):
-        load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[x]], "45678"))
-        load_p = reduce(lambda x, y : x*y, map(lambda x : self.DP[line[x]], "45678"))
+    def ExtractSum(self, cards):
+        return reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
 
-        self.FLUSH_RANKS = {}
-        with open("lookup-tables/flush lookup.txt", "r") as file:
-            for line in file:
-                self.FLUSH_RANKS[load_v] = int(str(line)[11:])
-
-        self.UNIQUE5_RANKS = {}
-        with open("lookup-tables/unique five lookup.txt", "r") as file:
-            for line in file:
-                self.UNIQUE5_RANKS[load_v] = int(str(line)[11:])
-
-        self.DUPE_RANKS = {}
-        with open("lookup-tables/dupe lookup.txt", "r") as file:
-            for line in file:
-                self.DUPE_RANKS[load_p] = int(str(line)[11:])
+    def ExtractProduct(self, cards):
+        return reduce(lambda x, y : x*y, map(lambda x : x.b & 255, cards))
 
     def EvaluateHands(self):
         for name in self.hands.keys():
             if self.CheckFlush(self.hands[name]["cards"]):
-                key = reduce(lambda x, y : x|y, map(lambda x : x.b, self.hands[name]["cards"])) >> 16
+                key = self.ExtractSum(self.hands[name]["cards"])
                 self.hands[name]["rank_n"] = self.FLUSH_RANKS[key]
             elif self.CheckUnique5(self.hands[name]["cards"]):
-                key = reduce(lambda x, y : x|y, map(lambda x : x.b, self.hands[name]["cards"])) >> 16
+                key = self.ExtractSum(self.hands[name]["cards"])
                 self.hands[name]["rank_n"] = self.UNIQUE5_RANKS[key]
             else:
-                key = reduce(lambda x, y : x*y, map(lambda x : x.b & 255, self.hands[name]["cards"]))
+                key = self.ExtractProduct(self.hands[name]["cards"])
                 self.hands[name]["rank_n"] = self.DUPE_RANKS[key]
 
-            c = 10 - len(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES))
-            self.hands[name["rank_c"]] = self.CLASSES[c]
+            c = 10 - len(list(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES)))
+            self.hands[name]["rank_c"] = self.CLASSES[c]
         return self.hands
 
-    def CheckPerformance(self, cards):
+    def DemoEvaluate(self, cards):
         if self.CheckFlush(cards):
             key = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
             rank_n = self.FLUSH_RANKS[key]
@@ -158,10 +173,17 @@ class HandTracker(object):
             key = reduce(lambda x, y : x*y, map(lambda x : x.b & 255, cards))
             rank_n = self.DUPE_RANKS[key]
 
-        c = 10 - len(filter(lambda x : rank_n >= x, self.BOUNDARIES))
+        c = 10 - len(list(filter(lambda x : rank_n >= x, self.BOUNDARIES)))
         rank_c = self.CLASSES[c]
 
-        return rank_c, rank_n
+        return {"rank_c": rank_c, "rank_n": rank_n}
+
+    def DemoDeal(self):
+        hand = []
+        for _ in range(5):
+            hand.append(next(self.DECK))
+        self.DECK.Shuffle()
+        return hand
 
 
 class Player(object):
@@ -244,39 +266,15 @@ class Human(Player):
 
 class Table(list):
     def __init__(self, players):
-        self.extend(players)
-        
-        self.deck = Deck()
-        self.pot = {} 
+        self.extend(players) 
 
   
 class Dealer(Table):
     def __init__(self, players):
         super().__init__(players)
-        self.VALUES = {char : 2 ** i for i, char in enumerate("23456789TJQKA")}
-        self.PRIMES = {
-            char : p for char, p in zip("23456789TJQKA", Card(0,0).PRIMES)}
-        
-        self.FLUSH_RANKS = {
-            self.VALUES[line[4]] | self.VALUES[line[5]] | 
-            self.VALUES[line[6]] | self.VALUES[line[7]] | 
-            self.VALUES[line[8]] : int(str(line)[11:]) 
-            for line in open("lookup-tables/flush lookup.txt", "r")}
-        
-        self.UNIQUE_FIVE_RANKS = {
-            self.VALUES[line[4]] | self.VALUES[line[5]] | 
-            self.VALUES[line[6]] | self.VALUES[line[7]] | 
-            self.VALUES[line[8]] : int(str(line)[11:]) 
-            for line in open("lookup-tables/unique five lookup.txt", "r")}
-        
-        self.DUPE_RANKS = {
-            self.PRIMES[line[4]] * self.PRIMES[line[5]] * 
-            self.PRIMES[line[6]] * self.PRIMES[line[7]] * 
-            self.PRIMES[line[8]] : int(str(line)[11:]) 
-            for line in open("lookup-tables/dupe lookup.txt", "r")}
-        
+        self.cards = HandTracker()
+        self.pot = {}
         self.ante = 0
-        
         self.button_next = []
         
     def MoveButton(self):
@@ -288,54 +286,24 @@ class Dealer(Table):
             self.button_next = self[0]
         
     def DealHands(self):
-        cards = {player.name : [] for player in self}
-        for c in range(5):
-            for player in self:
-                cards[player.name].append(next(self.deck))
-                if c == 4:
-                    player.hand = Hand(cards[player.name])
-                    
-    def EvaluateHands(self):
-        ranks = {}
+        names = [p.name for p in self]
+        hands = self.cards.DealHands(names)
+
         for player in self:
-            flush = (
-                player.hand[0].b & player.hand[1].b & player.hand[2].b &
-                player.hand[3].b & player.hand[4].b & (15 << 12))
-            
-            if flush:
-                key = (
-                    player.hand[0].b | player.hand[1].b | player.hand[2].b | 
-                    player.hand[3].b | player.hand[4].b) >> 16
-                rank = self.FLUSH_RANKS[key]
-                ranks[player.name] = rank
-                continue
-            
-            unique5 = bin((
-                player.hand[0].b | player.hand[1].b | player.hand[2].b |
-                player.hand[3].b | player.hand[4].b) >> 16).count("1") == 5
-            
-            if unique5:
-                key = (
-                    player.hand[0].b | player.hand[1].b | player.hand[2].b | 
-                    player.hand[3].b | player.hand[4].b) >> 16 
-                rank = self.UNIQUE_FIVE_RANKS[key]
-                ranks[player.name] = rank
-                continue
-           
-            key = (
-                (player.hand[0].b & 255) * (player.hand[1].b & 255) * 
-                (player.hand[2].b & 255) * (player.hand[3].b & 255) * 
-                (player.hand[4].b & 255))
-            rank = self.DUPE_RANKS[key]
-            ranks[player.name] = rank
-        return ranks
+            player.hand = Hand(hands[player.name]["cards"])
+    
+    def EditHand(self, player, discards):
+        cards = self.cards.EditHand(player.name, discards)
+        player.hand = Hand(cards)
+     
+    def EvaluateHands(self):
+        hands = self.cards.EvaluateHands()
+        return hands 
             
     def CollectCards(self):
+        self.cards.CollectHands()
         for player in self:
             player.hand = None
-                
-    def ShuffleDeck(self):
-        self.deck.Shuffle()
         
     def TakeAnte(self):
         for player in self:  
@@ -393,16 +361,16 @@ class Dealer(Table):
     def Payout(self):
         winners = {}
         
-        rankings = self.EvaluateHands()
+        hands = self.EvaluateHands()
         
         players_rem = [player for player in self if not player.has_folded]
         players_rem.sort(
-            key = lambda x: (rankings[x.name], self.pot[x.name]))
+            key = lambda x: (hands[x.name]["rank_n"], self.pot[x.name]))
         
         splits =  [
             list(players) for _, players in groupby(
                 iterable = players_rem, 
-                key = lambda x : rankings[x.name])]       
+                key = lambda x : hands[x.name]["rank_n"])]       
         
         for split in splits:
             total = 0
@@ -441,14 +409,14 @@ class Dealer(Table):
         
         i, best_rank = 0, 10000
         while winners:
-            rank = self.Lookup(rankings[self[i].name])
+            rank = hands[self[i].name]["rank_c"]
             if self[i].name in winners.keys():
                 print(f"{self[i]} won {winners[self[i].name]} chips" + " " + 
                       f"with {self[i].hand} ({rank})")
                 del winners[self[i].name]
             elif not self[i].has_folded:
-                if rankings[self[i].name] <= best_rank:
-                    best_rank = rankings[self[i].name]
+                if hands[self[i].name]["rank_n"] <= best_rank:
+                    best_rank = hands[self[i].name]["rank_n"]
                     print(f"{self[i]} mucked with {self[i].hand} ({rank})")
                 else:
                     print(f"{self[i]} mucked.")   
@@ -459,28 +427,6 @@ class Dealer(Table):
             i += 1
         
         self.pot.clear()
-        
-    def Lookup(self, ranking):
-        if 6186 <= ranking:
-            return "high card"
-        elif 3326 <= ranking and ranking <= 6187:
-            return "pair"
-        elif 2468 <= ranking and ranking <= 3325:
-            return "two pair"
-        elif 1610 <= ranking and ranking <= 2467:
-            return "three of a kind"
-        elif 1600 <= ranking and ranking <= 1609:
-            return "straight"
-        elif 323 <= ranking and ranking <= 1599:
-            return "flush"
-        elif 167 <= ranking and ranking <= 322:
-            return "full house"
-        elif 11 <= ranking and ranking <= 166:
-            return "four of a kind"
-        elif 2 <= ranking and ranking <= 10:
-            return "straigh flush"
-        else:
-            return "royal flush"
                     
 
 class Hand(list):
@@ -575,7 +521,7 @@ class FiveCardDraw(Dealer):
         print(f"{self[-1]} has got the button.")
         
         self.TakeAnte()
-        self.ShuffleDeck()
+
         self.DealHands()
         return True
     
@@ -639,17 +585,12 @@ class FiveCardDraw(Dealer):
                 continue
 
             discarded_cards = player.SelectCards()
-            kept_cards = [
-                card for card in player.hand if card not in discarded_cards]
             
             if len(discarded_cards):
                 print(f"{player} swapped {len(discarded_cards)} cards.")
             
-            new_cards = []
-            for _ in range(len(discarded_cards)):
-                new_cards.append(next(self.deck))
+            self.EditHand(player, discarded_cards)
                 
-            player.hand = Hand(kept_cards + new_cards)
             if type(player) == Human:
                 print(f"You have {player.hand}.\n")
 
