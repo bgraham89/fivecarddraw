@@ -273,6 +273,8 @@ class Dealer(Table):
     def __init__(self, players):
         super().__init__(players)
         self.cards = HandTracker()
+        # self.seats = SeatTracker()
+        # self.chips = ChipTracker()
         self.pot = {}
         self.ante = 0
         self.button_next = []
