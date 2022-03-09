@@ -146,20 +146,24 @@ class HandTracker(object):
     def ExtractProduct(self, cards):
         return reduce(lambda x, y : x*y, map(lambda x : x.b & 255, cards))
 
+    def EvaluateHand(self, name):
+        if self.CheckFlush(self.hands[name]["cards"]):
+            key = self.ExtractSum(self.hands[name]["cards"])
+            self.hands[name]["rank_n"] = self.FLUSH_RANKS[key]
+        elif self.CheckUnique5(self.hands[name]["cards"]):
+            key = self.ExtractSum(self.hands[name]["cards"])
+            self.hands[name]["rank_n"] = self.UNIQUE5_RANKS[key]
+        else:
+            key = self.ExtractProduct(self.hands[name]["cards"])
+            self.hands[name]["rank_n"] = self.DUPE_RANKS[key]
+
+        c = 10 - len(list(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES)))
+        self.hands[name]["rank_c"] = self.CLASSES[c]
+        return self.hands[name]
+
     def EvaluateHands(self):
         for name in self.hands.keys():
-            if self.CheckFlush(self.hands[name]["cards"]):
-                key = self.ExtractSum(self.hands[name]["cards"])
-                self.hands[name]["rank_n"] = self.FLUSH_RANKS[key]
-            elif self.CheckUnique5(self.hands[name]["cards"]):
-                key = self.ExtractSum(self.hands[name]["cards"])
-                self.hands[name]["rank_n"] = self.UNIQUE5_RANKS[key]
-            else:
-                key = self.ExtractProduct(self.hands[name]["cards"])
-                self.hands[name]["rank_n"] = self.DUPE_RANKS[key]
-
-            c = 10 - len(list(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES)))
-            self.hands[name]["rank_c"] = self.CLASSES[c]
+            self.EvaluateHand(name)
         return self.hands
 
     def DemoEvaluate(self, cards):
@@ -191,7 +195,6 @@ class Player(object):
         self.name = name
         
         self.chips = 0
-        self.hand = None
         
         self.has_allin = False
         self.has_folded = False
@@ -205,11 +208,11 @@ class Human(Player):
     def __init__(self, name):
         super().__init__(name)
     
-    def SelectCards(self):
-        print(f"\nYou have {self.hand}.")
+    def SelectCards(self, hand):
+        print(f"\nYou have {hand}.")
         
         selections = []
-        for card in self.hand:
+        for card in hand:
             selection = input(
                 f"Select {card} to switch? Enter Y/N.").strip().lower()
             if selection == "y":
@@ -219,20 +222,19 @@ class Human(Player):
             return selections
         
         kept_ace = any([
-            card for card in self.hand if 
+            card for card in hand if 
             card not in selections and card.value_r == "A"])
          
         if len(selections) <= 4 and kept_ace:
             return selections
         
         print("Please select again.")
-        return self.SelectCards()
+        return self.SelectCards(hand)
     
-    def SelectAction(self, options, min_to_call, pot):
+    def SelectAction(self, options, min_to_call, pot):   # input state, output hand
         print(f"\nThere are {sum(pot.values())} chips in the pot.")
         print(f"The amount to call is {min_to_call}.")
         print(f"You have {self.chips} chips.")
-        print(f"You have {self.hand}.")
         
         prompt = ""
         for i, option in enumerate(options):
@@ -245,11 +247,10 @@ class Human(Player):
             print("Please select again.")
             return self.SelectAction(options, min_to_call, pot)
     
-    def SelectRaise(self, ante, min_to_call, pot):
+    def SelectRaise(self, ante, min_to_call, pot): # input state, output hand
         print(f"\nThere are {sum(pot.values())} chips in the pot.")
         print(f"The amount to call is {min_to_call}.")
         print(f"You have {self.chips} chips.")
-        print(f"You have {self.hand}.")
         
         try:
             amount = input("Select how much to raise by. \n").strip()
@@ -289,23 +290,16 @@ class Dealer(Table):
         
     def DealHands(self):
         names = [p.name for p in self]
-        hands = self.cards.DealHands(names)
-
-        for player in self:
-            player.hand = Hand(hands[player.name]["cards"])
+        # names = self.seats.Players()
+        self.cards.DealHands(names)
+        self.cards.EvaluateHands()
     
-    def EditHand(self, player, discards):
-        cards = self.cards.EditHand(player.name, discards)
-        player.hand = Hand(cards)
-     
-    def EvaluateHands(self):
-        hands = self.cards.EvaluateHands()
-        return hands 
+    def EditHand(self, name, discards):
+        self.cards.EditHand(name, discards)
+        self.cards.EvaluateHand(name)
             
     def CollectCards(self):
         self.cards.CollectHands()
-        for player in self:
-            player.hand = None
         
     def TakeAnte(self):
         for player in self:  
@@ -363,7 +357,7 @@ class Dealer(Table):
     def Payout(self):
         winners = {}
         
-        hands = self.EvaluateHands()
+        hands = self.cards.hands
         
         players_rem = [player for player in self if not player.has_folded]
         players_rem.sort(
@@ -406,7 +400,7 @@ class Dealer(Table):
                     winners[winner.name] = reward
         
         if len(players_rem) < 2:
-            print(f"{players_rem[0]} won {winners[players_rem[0].name]} chips.")
+            print(f"{players_rem[0]} won {winners[players_rem[0]]} chips.")
             winners.clear()
         
         i, best_rank = 0, 10000
@@ -414,12 +408,12 @@ class Dealer(Table):
             rank = hands[self[i].name]["rank_c"]
             if self[i].name in winners.keys():
                 print(f"{self[i]} won {winners[self[i].name]} chips" + " " + 
-                      f"with {self[i].hand} ({rank})")
+                      f"with {self.cards.hands[self[i].name]['cards']} ({rank})")
                 del winners[self[i].name]
             elif not self[i].has_folded:
                 if hands[self[i].name]["rank_n"] <= best_rank:
                     best_rank = hands[self[i].name]["rank_n"]
-                    print(f"{self[i]} mucked with {self[i].hand} ({rank})")
+                    print(f"{self[i]} mucked with {self.cards.hands[self[i].name]['cards']} ({rank})")
                 else:
                     print(f"{self[i]} mucked.")   
             i += 1
@@ -429,25 +423,15 @@ class Dealer(Table):
             i += 1
         
         self.pot.clear()
-                    
-
-class Hand(list):
-    def __init__(self, cards):
-        self.extend(cards)
-        
-        self.cards_r = " ".join([str(card) for card in self])
-        
-    def __repr__(self):
-        return self.cards_r     
-    
+                        
     
 class BasicAI(Player):
     def __init__(self, name):
         super().__init__(name)
     
-    def SelectCards(self):
+    def SelectCards(self, hand):
         selections = []
-        for card in self.hand:
+        for card in hand:
             selection = choice([True, False])
             if selection:
                 selections.append(card)
@@ -456,18 +440,18 @@ class BasicAI(Player):
             return selections
         
         kept_ace = any([
-            card for card in self.hand if 
+            card for card in hand if 
             card not in selections and card.value_r == "A"])
          
         if len(selections) <= 4 and kept_ace:
             return selections
         
-        return self.SelectCards()
+        return self.SelectCards(hand)
     
-    def SelectAction(self, options, min_to_call, pot):
+    def SelectAction(self, options, min_to_call, pot): # state input
         return choice(options)
 
-    def SelectRaise(self, ante, min_to_call, pot):
+    def SelectRaise(self, ante, min_to_call, pot): #state input
         try:
             options = range(0, self.chips - min_to_call + 1, ante)
             return choice(options)
@@ -585,16 +569,17 @@ class FiveCardDraw(Dealer):
         for player in self:
             if player.has_folded:
                 continue
-
-            discarded_cards = player.SelectCards()
+            name = player.name
+            hand = self.cards.hands[name]["cards"]
+            discarded_cards = player.SelectCards(hand)
             
             if len(discarded_cards):
                 print(f"{player} swapped {len(discarded_cards)} cards.")
             
-            self.EditHand(player, discarded_cards)
+            self.EditHand(name, discarded_cards)
                 
             if type(player) == Human:
-                print(f"You have {player.hand}.\n")
+                print(f"You have {self.cards.hands[player.name]['cards']}.\n")
 
            
     def EvaluationPhase(self):
