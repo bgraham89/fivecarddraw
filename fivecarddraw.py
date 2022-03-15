@@ -189,7 +189,6 @@ class HandTracker(object):
         self.DECK.Shuffle()
         return hand
 
-
 class Player(object):
     def __init__(self, name):
         self.name = name
@@ -265,17 +264,50 @@ class Human(Player):
             return self.SelectRaise(ante, min_to_call, pot)
     
 
-class Table(list):
-    def __init__(self, players):
-        self.extend(players) 
+class SeatTracker(object):
+    def __init__(self, amount_seats):
+        self.seats = ["" for _ in range(amount_seats)]
+        self.players = {}
+
+        self.action = {"seat" : -1, "player" : ""}
+        self.button = {"seat" : -1, "player" : ""}
+
+    def AddPlayer(self, name, seat):
+        self.seats[seat] = name
+        self.players[name]["seat"] = seat
+        return self.players
+
+    def KickPlayer(self, name):
+        seat = self.players[name]["seat"]
+        self.seats[seat] = ""
+        del self.players[name]
+        return self.players
+    
+    def NextButtonPlayer(self, button):
+        pass
+
+    def NextActionPlayer(self, action):
+        pass
+
+
+class TokenTracker(object):
+    def __init__(self):
+        self.tokens = {"button" : {"seat" : -1, "player" : ""}}
+
+    def PlaceButton(self, location):
+        self.tokens["button"] = location
+        return location
+
+    def Button(self):
+        return self.tokens["button"]
+         
 
   
-class Dealer(Table):
-    def __init__(self, players):
-        super().__init__(players)
+class Dealer(object):
+    def __init__(self):
         self.cards = HandTracker()
-        # self.seats = SeatTracker()
-        # self.chips = ChipTracker()
+        self.seats = SeatTracker()
+        # self.tokens = TokenTracker()
         self.pot = {}
         self.ante = 0
         self.button_next = []
