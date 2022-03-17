@@ -283,24 +283,11 @@ class SeatTracker(object):
         del self.players[name]
         return self.players
     
-    def NextButtonPlayer(self, button):
+    def NextButtonPlayer(self):
         pass
 
-    def NextActionPlayer(self, action):
+    def NextActionPlayer(self):
         pass
-
-
-class TokenTracker(object):
-    def __init__(self):
-        self.tokens = {"button" : {"seat" : -1, "player" : ""}}
-
-    def PlaceButton(self, location):
-        self.tokens["button"] = location
-        return location
-
-    def Button(self):
-        return self.tokens["button"]
-         
 
   
 class Dealer(object):
