@@ -333,20 +333,20 @@ class Dealer(object):
     def __init__(self):
         self.cards = HandTracker()
         self.seats = SeatTracker()
-        # self.tokens = TokenTracker()
+        # self.chips = ChipTracker()
         self.pot = {}
         self.ante = 0
         self.button_next = []
         
     def MoveButton(self):
         self.seats.NextButtonPlayer()
-        return self.seats.button
+        return True
         
     def DealHands(self):
         names = self.seats.DealingOrder()
         self.cards.DealHands(names)
         self.cards.EvaluateHands()
-        return self.seats.action
+        return True
     
     def EditHand(self, name, discards):
         if self.cards.ApproveDiscards(name, discards):
