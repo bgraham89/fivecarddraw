@@ -100,6 +100,13 @@ class HandTracker(object):
                 self.hands[name]["cards"].append(next(self.DECK))
         return self.hands
 
+    def ApproveDiscards(self, name, discards):
+        cards = self.hands[name]["cards"]
+        remaining = [card for card in cards if card not in discards]
+        if len(discards) > 3 and self.ExtractProduct(remaining) % 41:
+            return False
+        return True
+
     def EditHand(self, name, discards):
         self.hands[name]["cards"] = list(filter(lambda x : x not in discards, self.hands[name]["cards"]))
         while len(self.hands[name]["cards"]) < 5:
@@ -269,25 +276,57 @@ class SeatTracker(object):
         self.seats = ["" for _ in range(amount_seats)]
         self.players = {}
 
-        self.action = {"seat" : -1, "player" : ""}
-        self.button = {"seat" : -1, "player" : ""}
+        self.action = {"seat" : -1, "player" : "", "queue" : self.seats}
+        self.button = {"seat" : -1, "player" : "", "queue" : self.seats}
+
+        self.count = amount_seats
 
     def AddPlayer(self, name, seat):
         self.seats[seat] = name
+        self.players[name] = {}
         self.players[name]["seat"] = seat
+        self.UpdateDealingOrder()
         return self.players
 
     def KickPlayer(self, name):
         seat = self.players[name]["seat"]
         self.seats[seat] = ""
         del self.players[name]
+        self.UpdateDealingOrder()
         return self.players
-    
+
+    def AddPlayers(self, players):
+        for assignment in zip(players, self.AvailableSeats()):
+            name = assignment[0]
+            empty_seat = assignment[1]
+            self.AddPlayer(name, empty_seat)
+        return self.players
+
+    def UpdateDealingOrder(self):
+        seat = self.button["seat"]
+        self.button["player"] = self.seats[seat]
+        self.button["queue"] = [name for name in self.seats[seat+1:] + self.seats[:seat+1] if name]
+        return self.button
+
     def NextButtonPlayer(self):
-        pass
+        while True:
+            seat = self.button["seat"]
+            seat += 1
+            seat %= self.count
+            self.button["seat"] = seat
+            if self.seats[seat] or not self.DealingOrder():
+                self.UpdateDealingOrder() 
+                break
+        return self.button 
 
     def NextActionPlayer(self):
         pass
+
+    def DealingOrder(self):
+        return self.button["queue"] 
+
+    def AvailableSeats(self):
+        return [i for i, occupant in enumerate(self.seats) if not occupant]
 
   
 class Dealer(object):
@@ -300,23 +339,22 @@ class Dealer(object):
         self.button_next = []
         
     def MoveButton(self):
-        if not self.button_next:
-            self.button_next = self[0]
-            
-        if self.button_next == self[0]:
-            self.append(self.pop(0))
-            self.button_next = self[0]
+        self.seats.NextButtonPlayer()
+        return self.seats.button
         
     def DealHands(self):
-        names = [p.name for p in self]
-        # names = self.seats.Players()
+        names = self.seats.DealingOrder()
         self.cards.DealHands(names)
         self.cards.EvaluateHands()
+        return self.seats.action
     
     def EditHand(self, name, discards):
-        self.cards.EditHand(name, discards)
-        self.cards.EvaluateHand(name)
-            
+        if self.cards.ApproveDiscards(name, discards):
+            self.cards.EditHand(name, discards)
+            self.cards.EvaluateHand(name)
+            return True
+        return False
+        
     def CollectCards(self):
         self.cards.CollectHands()
         
