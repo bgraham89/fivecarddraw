@@ -409,7 +409,7 @@ class ActionTracker(object):
     def SelectDiscards(self, name, info):
         if name in self.beings["humans"]:
             print(f"[INFO] Your cards are {info['self']['hand']['cards']}")
-            mask = input("Which cards would you like to swap? (00000 for none, 11111 for all)").split("")
+            mask = input("Which cards would you like to swap? (00000 for none, 11111 for all)")
             discards =  [info['self']['hand']['cards'][i] for i, v in enumerate(mask) if int(v)]
         else:
             discards = [info['self']['hand']['cards'][i] for i in range(5) if choice([True,False])]
@@ -477,8 +477,6 @@ class Dealer(object):
     def TakeBet(self, name, amount):
         if self.chips.ApproveBet(name, amount):
             status = self.chips.BetStatus(name, amount)
-            print(f"[DEBUG] amount {amount}")
-            print(f"[DEBUG] status {status}")
             if not any([status["has_mincalled"], status["has_allin"], status["has_folded"]]):
                 return False
             if status["has_raised"] and status["has_allin"]:
@@ -662,7 +660,7 @@ class PlayGame(object):
 
     def SwitchingPhase(self):
         dealing_order = self.dealer.seats.ActionOrder()
-        if len(self.dealer.action.ActingPlayers(dealing_order)) < 2:
+        if len(self.dealer.action.ShowdownPlayers(dealing_order)) < 2:
             return True
         for name in dealing_order:
             if self.dealer.action.players[name]["has_folded"]:
