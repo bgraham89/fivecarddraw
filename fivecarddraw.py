@@ -375,11 +375,6 @@ class ActionTracker(object):
 
     def ActingPlayers(self, action_order):
         return [name for name in action_order if not self.players[name]["has_folded"] and not self.players[name]["has_allin"]]
-    
-    def Human(self):
-        if self.beings["humans"]:
-            return self.beings["humans"][0]
-        return "NO_HUMANS"
 
     def AddHuman(self, name):
         self.beings["humans"].append(name)
@@ -394,6 +389,11 @@ class ActionTracker(object):
         self.beings["bots"].remove(name)
         del self.players[name]
         return True
+
+    def Human(self):
+        if self.beings["humans"]:
+            return self.beings["humans"][0]
+        return "NO_HUMANS"
 
     def SelectAmount(self, name, info):
         if name in self.beings["humans"]:
