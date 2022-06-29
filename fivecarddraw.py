@@ -391,11 +391,6 @@ class ActionTracker(object):
         if name in self.players:
             del self.players[name]
 
-    def Human(self):
-        if self.beings["humans"]:
-            return self.beings["humans"][0]
-        return "NO_HUMANS"
-
     def SelectAmount(self, name, info):
         if name in self.beings["humans"]:
             print(f"[INFO] Your cards are {info['self']['hand']['cards']}")
@@ -574,6 +569,7 @@ class Dealer(object):
             print(f"[SHOWDOWN] {winner} won {rewards[winner]} chips.")
             return True
         
+        mucks = set([])
         i, rank_n = 0, inf
         for name in showdown:
             if self.cards.hands[name]["rank_n"] <= rank_n:
@@ -582,11 +578,15 @@ class Dealer(object):
                 rank_n = self.cards.hands[name]["rank_n"]
             else:
                 print(f"[SHOWDOWN] {name} mucked.")
+                mucks.add(name)
         for name in showdown:
             reward = rewards[name]
             if reward:
-                hand = self.cards.hands[name]["rank_c"]
-                print(f"[REWARDS] {name} won {reward} with a {hand}")
+                if name not in mucks:
+                    hand = self.cards.hands[name]["rank_c"]
+                    print(f"[REWARDS] {name} won {reward} with a {hand}")
+                else:
+                    print(f"[REWARDS] {name} got {reward} chips back.")
                 self.chips.RewardChipsPlayer(name, reward)
 
         self.chips.ClearPot()
@@ -615,12 +615,11 @@ class Dealer(object):
 
 
 class PlayGame(object):
-    def __init__(self):
-        self.OPPONENTS = ["Phil Ivey", "Gus Hanson", "Dan Negreanu", "Phil Hellmuth"]
-        self.CHIPS = 500
-        self.ANTE = 5
-        self.dealer = Dealer()
-
+    def __init__(self, chips=500, ante=5, opponents=["Phil Ivey", "Gus Hanson", "Dan Negreanu", "Phil Hellmuth"]):
+        self.OPPONENTS = opponents
+        self.CHIPS = chips
+        self.ANTE = ante
+        
         self.Configuration()
 
         while self.NewHand():
@@ -632,22 +631,24 @@ class PlayGame(object):
             self.EndGame()
 
     def Configuration(self):
+        self.dealer = Dealer(len(self.OPPONENTS)+1)
         player = input("What's your name?")
         self.dealer.InitializeTable([player], self.OPPONENTS, self.CHIPS)
         self.dealer.SetAnte(self.ANTE)
+        self.HUMAN = player
 
     def NewHand(self):
-        human = self.dealer.action.Human()
-        if not self.dealer.chips.players[human]["stack"]:
-            print(f"[END] Game over {human}, better luck next time.")
+        if not self.dealer.chips.players[self.HUMAN]["stack"]:
+            print(f"[END] Game over {self.HUMAN}, better luck next time.")
             return False
 
         for name in self.dealer.seats.Names():
-            if not self.dealer.chips.players[name]["stack"]:
+            if not self.dealer.chips.players[name]["stack"] or self.dealer.chips.players[name]["stack"] < self.ANTE:
                 self.dealer.KickPlayer(name)
 
         if len(self.dealer.seats.Names()) < 2:
-            print(f"[END] {human} has won!")
+            print(f"[END] {self.HUMAN} has won!")
+            return False
 
         print(f"\n[NEW ROUND]")
         self.dealer.MoveButton()
@@ -688,7 +689,7 @@ class PlayGame(object):
             while True:
                 discards = self.dealer.action.SelectDiscards(name, info)
                 if self.dealer.EditHand(name, discards):
-                    if name == self.dealer.action.Human() and discards:
+                    if name == self.HUMAN and discards:
                         print(f"[CARDS] Your new hand is {self.dealer.cards.hands[name]['cards']}")
                     break
         return True
@@ -707,9 +708,11 @@ class SpectateGame(PlayGame):
         super().__init__()
     
     def Configuration(self):
+        self.dealer = Dealer(len(self.OPPONENTS))
         humans = []
         self.dealer.InitializeTable(humans, self.OPPONENTS, self.CHIPS)
         self.dealer.SetAnte(self.ANTE)
+        self.HUMAN = None
     
     def NewHand(self):
         for name in self.dealer.seats.Names():
