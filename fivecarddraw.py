@@ -83,7 +83,7 @@ class HandTracker(object):
             "straight", 
             "flush", 
             "full house",
-            "four of a kind" 
+            "four of a kind", 
             "straight flush", 
             "royal flush")
 
@@ -166,7 +166,6 @@ class HandTracker(object):
         else:
             key = self.ExtractProduct(self.hands[name]["cards"])
             self.hands[name]["rank_n"] = self.DUPE_RANKS[key]
-
         c = 10 - len(list(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES)))
         self.hands[name]["rank_c"] = self.CLASSES[c]
         return self.hands[name]
@@ -197,8 +196,11 @@ class HandTracker(object):
         for _ in range(5):
             hand.append(next(self.DECK))
         self.DECK.Shuffle()
-        return hand    
+        return hand
 
+    def GiveHand(self, name, cards):
+        self.hands[name] = {}
+        self.hands[name]["cards"] = cards
 
 class SeatTracker(object):
     def __init__(self, amount_seats):
@@ -268,8 +270,7 @@ class SeatTracker(object):
 
 class ChipTracker(object):
     def __init__(self):
-        self.gameinfo = {"smallblind" : 0, "bigblind" : 0, "ante" : 0}
-
+        self.gameinfo = {"ante" : 0}
         self.players = {}
 
     def AddChipsPlayer(self, name, amount):
@@ -292,12 +293,6 @@ class ChipTracker(object):
 
     def ApproveBet(self, name, amount):
         return True if amount <= self.players[name]["stack"] else False
-
-    def FeeStatus(self, name, amount):
-        has_enough = True if amount <= self.players[name]["stack"] else False
-        has_allin = True if amount >= self.players[name]["stack"] else False
-        has_passed = True if amount == 0 else False
-        return {"has_enough" : has_enough, "has_allin" : has_allin, "has_passed" : has_passed}
 
     def AmountToCall(self, name):
         contributions = [self.players[name]["contribution"] for name in self.players.keys()]
@@ -350,6 +345,22 @@ class ChipTracker(object):
 
     def ChipStacks(self):
         return {name : self.players[name]["stack"] for name in self.players}
+
+    def SetAnte(self, amount):
+        self.gameinfo["ante"] = amount
+
+    def GetAnte(self):
+        return self.gameinfo["ante"]
+
+    def CheckAnte(self, player):
+        status = {"bet_all" : False, "bet_something" : False, "bet_nothing" : False}
+        if self.GetAnte() == self.players[player]["stack"]:
+            status["bet_all"] = True
+        elif self.GetAnte():
+            status["bet_something"] = True
+        else:
+            status["bet_nothing"] = True
+        return status
             
 
 class ActionTracker(object):
@@ -367,28 +378,18 @@ class ActionTracker(object):
             self.players[name]["has_mincalled"] = False
         return True
 
-    def PlayerHasActed(self, name):
-        return any(self.players[name].values())
-
-    def ShowdownPlayers(self, dealing_order):
-        return [name for name in dealing_order if not self.players[name]["has_folded"]]
-
-    def ActingPlayers(self, action_order):
-        return [name for name in action_order if not self.players[name]["has_folded"] and not self.players[name]["has_allin"]]
-
-    def AddHuman(self, name):
-        self.beings["humans"].append(name)
-        return True
+    def AddHumans(self, names):
+        for name in names:
+            self.beings["humans"].append(name)
     
     def AddBots(self, names):
         for name in names:
             self.beings["bots"].append(name)
-        return True
 
     def KickBot(self, name):
         self.beings["bots"].remove(name)
-        del self.players[name]
-        return True
+        if name in self.players:
+            del self.players[name]
 
     def Human(self):
         if self.beings["humans"]:
@@ -415,11 +416,29 @@ class ActionTracker(object):
             discards = [info['self']['hand']['cards'][i] for i in range(5) if choice([True,False])]
         return discards
 
+    def SetAllIn(self, name):
+        self.players[name]["has_allin"] = True
+
+    def SetMinCalled(self, name):
+        self.players[name]["has_mincalled"] = True
+
+    def SetFolded(self, name):
+        self.players[name]["has_folded"] = True
+
+    def PlayerHasActed(self, name):
+        return any(self.players[name].values())
+
+    def ShowdownPlayers(self, dealing_order):
+        return [name for name in dealing_order if not self.players[name]["has_folded"]]
+
+    def ActingPlayers(self, action_order):
+        return [name for name in action_order if not self.players[name]["has_folded"] and not self.players[name]["has_allin"]]
+
 
 class Dealer(object):
-    def __init__(self):
+    def __init__(self, num_seats=6):
         self.cards = HandTracker()
-        self.seats = SeatTracker(6)
+        self.seats = SeatTracker(num_seats)
         self.chips = ChipTracker()
         self.action = ActionTracker()
         
@@ -440,7 +459,6 @@ class Dealer(object):
         self.cards.EvaluateHands()
         self.action.NewRound(names)
         print(f"[CARDS] Hands have been dealt.")
-        return True
     
     def EditHand(self, name, discards):
         if self.cards.ApproveDiscards(name, discards):
@@ -455,23 +473,20 @@ class Dealer(object):
         
     def CollectCards(self):
         self.cards.CollectHands()
-        print(f"[CARDS] Hands have been collected.")
+        print(f"[CARDS] Cards have been collected.")
         print(f"[CARDS] The deck has been shuffled.")
-        return True
         
     def TakeAnte(self):
         for name in self.seats.DealingOrder():
-            amount = self.chips.gameinfo["ante"] 
-            status = self.chips.FeeStatus(name, amount)
-            if status["has_passed"]:
-                continue
-            if not status["has_enough"]:
-                amount = self.chips.players[name]["status"]
-            if status["has_allin"]:
-                self.action.players[name]["has_allin"] = True 
+            amount = self.chips.GetAnte()
+            status = self.chips.CheckAnte(name)
+            if status["bet_all"]:
                 print(f"[ANTE] The ante forced {name} to go all-in with {amount} chips!")
-            else:
+                self.action.SetAllIn(name)
+            elif status["bet_something"]:
                 print(f"[ANTE] {name} paid {amount} chips for the ante.")
+            else:
+                continue
             self.chips.BetChipsPlayer(name, amount)
     
     def TakeBet(self, name, amount):
@@ -481,28 +496,28 @@ class Dealer(object):
                 return False
             if status["has_raised"] and status["has_allin"]:
                 self.action.ExtendRound()
-                self.action.players[name]["has_allin"] = True
+                self.action.SetAllIn(name)
                 surplass = amount - self.chips.AmountToCall(name) 
                 print(f"[ACTION] {name} has raised by {surplass} and gone all-in!")
             elif status["has_raised"] and status["has_mincalled"]:
                 self.action.ExtendRound()
-                self.action.players[name]["has_mincalled"] = True
+                self.action.SetMinCalled(name)
                 surplass = amount - self.chips.AmountToCall(name) 
                 print(f"[ACTION] {name} has raised by {surplass}.")
             elif status["has_allin"] and status["has_mincalled"]:
-                self.action.players[name]["has_allin"] = True
+                self.action.SetAllIn(name)
                 print(f"[ACTION] {name} has gone all-in to call!")
             elif status["has_mincalled"] and amount == 0:
-                self.action.players[name]["has_mincalled"] = True
+                self.action.SetMinCalled(name)
                 print(f"[ACTION] {name} has checked.")
             elif status["has_mincalled"]:
-                self.action.players[name]["has_allin"] = True
+                self.action.SetMinCalled(name)
                 print(f"[ACTION] {name} has called.")
             elif status["has_folded"]:
-                self.action.players[name]["has_folded"] = True
+                self.action.SetFolded(name)
                 print(f"[ACTION] {name} has folded.")
             elif status["has_allin"]:
-                self.action.players[name]["has_allin"] = True
+                self.action.SetAllIn(name)
                 print(f"[ACTION] {name} couldn't call but has gone all-in.")
             self.chips.BetChipsPlayer(name, amount)
             return True
@@ -513,10 +528,16 @@ class Dealer(object):
         info = {}
         for name in self.seats.Names():
             info[name] = {}
-            info[name]["hand"] = self.cards.hands[name]
             info[name]["seat"] = self.seats.players[name]
             info[name]["chips"] = self.chips.players[name]
-            info[name]["status"] = self.action.players[name]
+            if name in self.cards.hands:
+                info[name]["hand"] = self.cards.hands[name]
+            if name in self.action.players:
+                info[name]["status"] = self.action.players[name]
+        if not self.action.players:
+            print(f"[WARNING] Nobody has a status.")
+        if not self.cards.hands:
+            print(f"[WARNING] Nobody has a hand.")
         return info
 
     def TableView(self, viewer):
@@ -532,7 +553,7 @@ class Dealer(object):
                 info["others"][name]["seat"] = self.seats.players[name]
                 info["others"][name]["chips"] = self.chips.players[name]
                 info["others"][name]["status"] = self.action.players[name]
-                info["others"][name]["hand"] = self.cards.hands[name]
+                info["others"][name]["hand"] = []
         info["game"]["call"] = self.chips.AmountToCall(viewer)
         info["game"]["pot"] = self.chips.PotTotal()
         return info
@@ -542,7 +563,6 @@ class Dealer(object):
         self.chips.WithdrawChipsPlayer(name)
         self.action.KickBot(name)
         print(f"[PLAYER] {name} is leaving the table.")
-        return True
          
     def Payout(self):
         info = self.PlayerInfo()
@@ -559,9 +579,9 @@ class Dealer(object):
             if self.cards.hands[name]["rank_n"] <= rank_n:
                 hand = self.cards.hands[name]["cards"]
                 print(f"[SHOWDOWN] {name} is holding {hand}")
+                rank_n = self.cards.hands[name]["rank_n"]
             else:
                 print(f"[SHOWDOWN] {name} mucked.")
-
         for name in showdown:
             reward = rewards[name]
             if reward:
@@ -570,23 +590,28 @@ class Dealer(object):
                 self.chips.RewardChipsPlayer(name, reward)
 
         self.chips.ClearPot()
-        return True
 
     def StartingChips(self, amount):
         for name in self.seats.Names():
             self.chips.AddChipsPlayer(name, amount)
         print(f"[SETUP] All players have been given {amount} chips.")
-        return True
 
-    def Ante(self, amount):
-        self.chips.gameinfo["ante"] = amount
+    def SetAnte(self, amount):
+        self.chips.SetAnte(amount)
         print(f"[SETUP] The ante has been set to {amount} chips.")
         return True
 
     def Summary(self):
         for name in self.seats.Names():
             print(f"[STANDINGS] {name} has got {self.chips.players[name]['stack']} chips remaining.")
-        return True
+
+    def InitializeTable(self, humans, bots, starting_chips):
+        players = humans + bots
+        shuffle(players)
+        self.seats.AddPlayers(players)
+        self.StartingChips(starting_chips)
+        self.action.AddHumans(humans)
+        self.action.AddBots(bots)
 
 
 class PlayGame(object):
@@ -608,14 +633,8 @@ class PlayGame(object):
 
     def Configuration(self):
         player = input("What's your name?")
-        names = [player] + self.OPPONENTS
-        shuffle(names)
-        self.dealer.seats.AddPlayers(names)
-        self.dealer.action.AddHuman(player)
-        self.dealer.action.AddBots(self.OPPONENTS)
-        print("\n")
-        self.dealer.StartingChips(self.CHIPS)
-        self.dealer.Ante(self.ANTE)
+        self.dealer.InitializeTable([player], self.OPPONENTS, self.CHIPS)
+        self.dealer.SetAnte(self.ANTE)
 
     def NewHand(self):
         human = self.dealer.action.Human()
@@ -688,11 +707,9 @@ class SpectateGame(PlayGame):
         super().__init__()
     
     def Configuration(self):
-        self.dealer.seats.AddPlayers(self.OPPONENTS)
-        self.dealer.action.AddBots(self.OPPONENTS)
-        print("\n")
-        self.dealer.StartingChips(self.CHIPS)
-        self.dealer.Ante(self.ANTE)
+        humans = []
+        self.dealer.InitializeTable(humans, self.OPPONENTS, self.CHIPS)
+        self.dealer.SetAnte(self.ANTE)
     
     def NewHand(self):
         for name in self.dealer.seats.Names():
