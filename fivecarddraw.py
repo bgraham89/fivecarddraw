@@ -170,13 +170,13 @@ class HandTracker(object):
                 self.DUPE_RANKS[load_p] = int(str(line)[11:])
 
     def CheckFlush(self, cards):
-        # check if hand contains flush and return hand
+        # check if hand contains flush
         suit_mask = 15 << 12
         has_flush = reduce(lambda x, y : x&y, map(lambda x : x.b, cards)) & suit_mask
         return bool(has_flush)
 
     def CheckUnique5(self, cards):
-        # check if hand contains 5 unique card values and return hand
+        # check if hand contains 5 unique card values
         values = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
         has_unique5 = bin(values).count("1") == 5
         return has_unique5
@@ -200,6 +200,7 @@ class HandTracker(object):
         else:
             key = self.ExtractProduct(self.hands[name]["cards"])
             self.hands[name]["rank_n"] = self.DUPE_RANKS[key]
+
         # derive hand classification [SLOW] and return players hand tracker
         c = 10 - len(list(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES)))
         self.hands[name]["rank_c"] = self.CLASSES[c]
@@ -250,7 +251,7 @@ class SeatTracker(object):
         self.count = amount_seats
 
     def AddPlayer(self, name, seat):
-        # track player and update seat tracker
+        # begin tracking player
         self.seats[seat] = name
         self.players[name] = {}
         self.players[name]["seat"] = seat
@@ -258,7 +259,7 @@ class SeatTracker(object):
         self.UpdateDealingOrder()
 
     def KickPlayer(self, name):
-        # stop tracking player and update seat tracker
+        # stop tracking player
         seat = self.players[name]["seat"]
         self.seats[seat] = ""
         del self.players[name]
@@ -273,16 +274,18 @@ class SeatTracker(object):
             self.AddPlayer(name, empty_seat)
 
     def NextButtonPlayer(self):
-        # find player to give button to and update trackers
+        # find player to give button to
         while True:
+            # check each seat for a player
             seat = self.button["seat"]
             seat += 1
             seat %= self.count
             self.button["seat"] = seat
-            if self.seats[seat] or not self.DealingOrder():
+            # check if player is at seat or whether there are seated players
+            if self.seats[seat] or not self.Names():
                 self.UpdateDealingOrder() 
                 break
-        # return players name or empty string
+        # return a players name or an empty string if nobody is seated
         return self.button 
 
     def UpdateDealingOrder(self):
@@ -296,11 +299,11 @@ class SeatTracker(object):
         return self.button["queue"] 
 
     def PreflopOrder(self):
-        # determine order that players should take turn preflop
+        # determine order that players should take turns preflop
         name = self.DealingOrder()[2 % len(self.Names())]
         seat = self.players[name]["seat"]
         queue = [name for name in self.seats[seat:] + self.seats[:seat] if name]
-        # return order that players should take turn preflop
+        # return order that players should take turns preflop
         return queue
 
     def Names(self):
@@ -319,7 +322,7 @@ class ChipTracker(object):
         self.players = {}
 
     def AddChipsPlayer(self, name, amount):
-        # determine players stack, initialising tracker if required
+        # determine players current stack or set it to zero.
         self.players.setdefault(name, {"stack" : 0, "contribution" : 0})
         # add chips to players stack
         self.players[name]["stack"] += amount
@@ -329,12 +332,12 @@ class ChipTracker(object):
         del self.players[name]
 
     def BetChipsPlayer(self, name, amount):
-        # update player tracker
+        # update players stack and contribution values
         self.players[name]["stack"] -= amount
         self.players[name]["contribution"] += amount
 
     def RewardChipsPlayer(self, name, amount):
-        # update player tracker
+        # add chips to players stack
         self.players[name]["stack"] += amount
 
     def ApproveBet(self, name, amount):
@@ -342,12 +345,12 @@ class ChipTracker(object):
         return True if amount <= self.players[name]["stack"] else False
 
     def AmountToCall(self, name):
-        # calculate how much player needs to contribute to call
+        # calculate how many chips a player needs to contribute, to minimum call
         contributions = [self.players[name]["contribution"] for name in self.players.keys()]
         return max(contributions) - self.players[name]["contribution"]
 
     def BetStatus(self, name, amount):
-        # analyse bet for classifying action player took
+        # analyse bet relative to circumstances for classifying the action taken
         min_to_call = self.AmountToCall(name)
         has_raised = True if amount > min_to_call else False
         has_allin = True if amount == self.players[name]["stack"] else False
@@ -415,7 +418,7 @@ class ChipTracker(object):
         return self.gameinfo["ante"]
 
     def CheckAnte(self, player):
-        # analyse player stack for determining action
+        # analyse ante relative to player stack for classifying action
         status = {"bet_all" : False, "bet_something" : False, "bet_nothing" : False}
         if self.GetAnte() == self.players[player]["stack"]:
             status["bet_all"] = True
@@ -433,12 +436,12 @@ class ActionTracker(object):
         self.beings = {"humans" : [], "bots" : []}
 
     def NewRound(self, names):
-        # initialise players statuses
+        # set players statuses to false
         for name in names:
             self.players[name] = {"has_allin" : False, "has_mincalled" : False, "has_folded" : False}
 
     def ExtendRound(self):
-        # update players statuses
+        # set players statuses to have not mincalled
         for name in self.players.keys():
             self.players[name]["has_mincalled"] = False
 
@@ -453,7 +456,7 @@ class ActionTracker(object):
             self.beings["bots"].append(name)
 
     def KickBot(self, name):
-        # update player and species tracker
+        # stop tracking bot
         self.beings["bots"].remove(name)
         if name in self.players:
             del self.players[name]
@@ -471,25 +474,27 @@ class ActionTracker(object):
         return amount
 
     def SelectDiscards(self, name, info):
-        # determine species and get a selection of cards to discard request
+        # determine species to ask for discards from
         if name in self.beings["humans"]:
+            # give info and get user input from human
             print(f"[INFO] Your cards are {info['self']['hand']['cards']}")
             mask = input("Which cards would you like to swap? (00000 for none, 11111 for all)")
             discards =  [info['self']['hand']['cards'][i] for i, v in enumerate(mask) if int(v)]
         else:
+            # get random input from bots
             discards = [info['self']['hand']['cards'][i] for i in range(5) if choice([True,False])]
         return discards
 
     def SetAllIn(self, name):
-        # update player status
+        # record player has gone all in
         self.players[name]["has_allin"] = True
 
     def SetMinCalled(self, name):
-        # update player status
+        # record player has min called
         self.players[name]["has_mincalled"] = True
 
     def SetFolded(self, name):
-        # update player status
+        # record player has folded
         self.players[name]["has_folded"] = True
 
     def PlayerHasActed(self, name):
@@ -514,14 +519,14 @@ class Dealer(object):
         self.action = ActionTracker()
         
     def MoveButton(self):
-        # move bytton to next player and log
+        # move button to next player and log
         self.seats.NextButtonPlayer()
         player = self.seats.button["player"]
         print(f"[BUTTON] The button was given to {player}.")
 
         
     def DealHands(self):
-        # determine payers in round
+        # determine players in the round
         names = self.seats.DealingOrder()
         # deal and evaluate hands and log
         self.cards.DealHands(names)
@@ -603,8 +608,9 @@ class Dealer(object):
             return False
 
     def PlayerInfo(self):
-        # initialise player tracker and return it
+        # initialise info tracker and return it
         info = {}
+        # add info about each player
         for name in self.seats.Names():
             info[name] = {}
             info[name]["seat"] = self.seats.players[name]
@@ -613,6 +619,7 @@ class Dealer(object):
                 info[name]["hand"] = self.cards.hands[name]
             if name in self.action.players:
                 info[name]["status"] = self.action.players[name]
+        # log missing info
         if not self.action.players:
             print(f"[WARNING] Nobody has a status.")
         if not self.cards.hands:
@@ -620,20 +627,23 @@ class Dealer(object):
         return info
 
     def TableView(self, viewer):
-        # initialise player game tracker and return it
+        # initialise info tracker and return it
         info = {"self" : {}, "others" : {}, "game" : {}}
         for name in self.seats.Names():
+            # add info about viewer
             if viewer == name:
                 info["self"]["seat"] = self.seats.players[name]
                 info["self"]["chips"] = self.chips.players[name]
                 info["self"]["status"] = self.action.players[name]
                 info["self"]["hand"] = self.cards.hands[name]
             else:
+                # add info about other players
                 info["others"][name] = {}
                 info["others"][name]["seat"] = self.seats.players[name]
                 info["others"][name]["chips"] = self.chips.players[name]
                 info["others"][name]["status"] = self.action.players[name]
                 info["others"][name]["hand"] = []
+        # add info game circumstances
         info["game"]["call"] = self.chips.AmountToCall(viewer)
         info["game"]["pot"] = self.chips.PotTotal()
         return info
@@ -706,7 +716,7 @@ class Dealer(object):
         # track species
         self.action.AddHumans(humans)
         self.action.AddBots(bots)
-        # give chips
+        # give chips to players
         self.StartingChips(starting_chips)
 
 
@@ -717,7 +727,7 @@ class PlayGame(object):
         self.CHIPS = chips
         self.ANTE = ante
         
-        # initialise human player 
+        # initialise game 
         self.Configuration()
 
         # gameloop
@@ -732,7 +742,7 @@ class PlayGame(object):
     def Configuration(self):
         # initialise dealer
         self.dealer = Dealer(len(self.OPPONENTS)+1)
-        # get name and track human
+        # get name and begin tracking human
         player = input("What's your name?")
         self.HUMAN = player
         # initialise table and economy
@@ -832,7 +842,7 @@ class SpectateGame(PlayGame):
         super().__init__()
     
     def Configuration(self):
-        # configure humanless game
+        # configure game
         self.dealer = Dealer(len(self.OPPONENTS))
         humans = []
         self.dealer.InitializeTable(humans, self.OPPONENTS, self.CHIPS)
