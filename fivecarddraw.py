@@ -90,7 +90,7 @@ class HandTracker(object):
         self.DP = {char : p for p, char in zip(Card(0,0).PRIMES, "23456789TJQKA")}
 
         # load data containing all hand ranks
-        self.LoadLookupTables()
+        self.LoadData()
 
         # initialise hand and deck tracking
         self.DECK = Deck()
@@ -149,22 +149,22 @@ class HandTracker(object):
         # reset deck tracker
         self.DECK.Shuffle()
 
-    def LoadLookupTables(self):
+    def LoadData(self):
         # store hand ranks of hands with flushes
         self.FLUSH_RANKS = {}
-        with open("lookup-tables/flush lookup.txt", "r") as file:
+        with open("data/flushes.txt", "r") as file:
             for line in file:
                 load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[int(x)]], "45678"))
                 self.FLUSH_RANKS[load_v] = int(str(line)[11:])
         # store hand ranks of hands with 5 unique card values
         self.UNIQUE5_RANKS = {}
-        with open("lookup-tables/unique five lookup.txt", "r") as file:
+        with open("data/uniquefive.txt", "r") as file:
             for line in file:
                 load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[int(x)]], "45678"))
                 self.UNIQUE5_RANKS[load_v] = int(str(line)[11:])
         # store hand ranks of hands with duplicate card values
         self.DUPE_RANKS = {}
-        with open("lookup-tables/dupe lookup.txt", "r") as file:
+        with open("data/dupes.txt", "r") as file:
             for line in file:
                 load_p = reduce(lambda x, y : x*y, map(lambda x : self.DP[line[int(x)]], "45678"))
                 self.DUPE_RANKS[load_p] = int(str(line)[11:])
