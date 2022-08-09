@@ -37,6 +37,12 @@ class Card(object):
     
     def __repr__(self):
         return self.r
+
+    def __str__(self):
+        return self.r
+
+    def __int__(self):
+        return self.b
     
 
 class Deck(object):

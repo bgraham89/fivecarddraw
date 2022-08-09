@@ -1,5 +1,4 @@
-# Separate Repos #
-
-##################
+# Seperate Repos #
 
 * __pycache__/
+* tests/__pycache__
