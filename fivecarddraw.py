@@ -6,7 +6,7 @@ from random import choice, shuffle
 
 class Card(object):
     def __init__(self, value, suit):
-        # assert acceptable paramaters 
+        # assert acceptable parameters 
         try:
             value %= 13
             suit %= 4
@@ -43,6 +43,12 @@ class Card(object):
 
     def __int__(self):
         return self.b
+
+    def __hash__(self):
+        return hash((self.value_i, self.suit_i))
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
     
 
 class Deck(object):
@@ -53,40 +59,46 @@ class Deck(object):
         self.t = 0
 
     def __repr__(self):
-        # return remaining cards in deck
-        return str(self.state[self.t:])
+        return str(self.RemainingCards())
+
+    def __str__(self):
+        return str(self.RemainingCards())
 
     def __iter__(self):
         return self.state
 
     def __next__(self):
-        # assert a remaining card in deck
+        # assert there is a remaining card in deck
         try:
-            top_card = self.state[self.t]
+            top_card = self.RemainingCards()[0]
         except IndexError:
             raise StopIteration()
 
-        # return remaining card as top card and update tracker
+        # return first remaining card as top card and update tracker
         self.t += 1
         return top_card
 
-    def Shuffle(self, reset=True):
-        # reset tracker as default for convenience
-        if reset:
-            self.t = 0
-
-        # shuffle and return deck
-        shuffle(self.state)
-        return self
-
-    def CountRemaining(self):
-        # return count of remaining cards
+    def __len__(self):
         return 52 - self.t
 
-    def RestartIterator(self):
-        # reset tracker and return deck
+    def Shuffle(self):
+        # shuffle remaining cards and update state
+        departed_cards = self.DepartedCards()
+        remaining_cards = self.RemainingCards()
+        shuffle(remaining_cards)
+        self.state = departed_cards + remaining_cards
+
+    def Collect(self):
+        # reset tracker
         self.t = 0
-        return self
+
+    def DepartedCards(self):
+        # return departed cards
+        return self.state[:self.t]
+
+    def RemainingCards(self):
+        # return remaining cards
+        return self.state[self.t:]
 
 
 class HandTracker(object):
@@ -153,6 +165,7 @@ class HandTracker(object):
         # reset hand tracker
         self.hands = {}
         # reset deck tracker
+        self.DECK.Collect()
         self.DECK.Shuffle()
 
     def LoadData(self):
