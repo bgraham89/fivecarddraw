@@ -25,9 +25,8 @@ class Card(object):
         self.b = self._prime + self._rank + self._suit + self._value
     
         # encode card as string for representation
-        self.VALUES = (
-            "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
-        self.SUITS = ("♠","♡","♢","♣")
+        self.VALUES = ("2","3","4","5","6","7","8","9","10","J","Q","K","A")
+        self.SUITS = "♠♡♢♣"
 
         self.value_r, self.suit_r = self.VALUES[value], self.SUITS[suit]
         self.r = self.value_r + self.suit_r
@@ -45,7 +44,7 @@ class Card(object):
         return self.b
 
     def __hash__(self):
-        return hash((self.value_i, self.suit_i))
+        return hash((self.value_i, self.suit_i, self.b))
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -103,158 +102,218 @@ class Deck(object):
 
 class HandTracker(object):
     def __init__(self):
-        # store ciphers for encoding hand as int for fast hand ranking
-        self.DV = {char : 2 ** i for i, char in enumerate("23456789TJQKA")}
-        self.DP = {char : p for p, char in zip(Card(0,0).PRIMES, "23456789TJQKA")}
-
-        # load data containing all hand ranks
-        self.LoadData()
-
         # initialise hand and deck tracking
         self.DECK = Deck()
         self.hands = {}
+       
+        # load data containing all hand ranks
+        self.LoadData()
 
-        # store hand categories for representation
-        self.CLASSES = (
-            "High card", 
-            "pair", 
-            "two pair", 
-            "three of a kind", 
-            "straight", 
-            "flush", 
-            "full house",
-            "four of a kind", 
-            "straight flush", 
-            "royal flush")
-        
-        # store data for encoding hand ranks as hand categories [SLOW]
-        self.BOUNDARIES = (6186, 3326, 2468, 1610, 1600, 323, 167, 11, 2, 1)
+    def __call__(self, info):
+        # reset trackers
+        self.Collect()
 
-        # shuffle deck for convenience [UNEXPECTED]
-        self.DECK.Shuffle()
+        # load info
+        self.hands = info
 
-    def DealHands(self, names):
+        # prepare deck state
+        departed_cards = [card for name in info for card in name["cards"]]
+        remaining_cards = [card for card in self.DECK.state if card not in departed_cards]
+        self.DECK.state = departed_cards + remaining_cards
+
+        # prepare deck tracker
+        t = len(departed_cards)
+        self.DECK.t = t
+
+    def TrackPlayers(self, names):
         # initialise player tracking
         self.hands = {name : {"cards" : []} for name in names}
-        # deal hands and return tracker
-        for _ in range(5):
-            for name in names:
-                self.hands[name]["cards"].append(next(self.DECK))
-        return self.hands
 
-    def ApproveDiscards(self, name, discards):
-        # identify cards that would remain if discards were removed from hand
-        cards = self.hands[name]["cards"]
-        remaining = [card for card in cards if card not in discards]
-        # decide legality of accepting discard request 
+    def AssignCards(self, name, cards):
+        # assert player is being tracked and update tracker
+        try:
+            self.hands[name]["cards"].extend(cards)
+        except KeyError:
+            raise Exception(f"{name} is not being tracked.")
+
+    def UnassignCards(self, name, cards):
+        # assert player is holding all cards
+        if set(cards).intersection(self.hands[name]["cards"]) != set(cards):
+            raise Exception(f"{name} is not holding some of {cards}.")
+        
+        # assert player is being tracked and update tracker
+        try:
+            self.hands[name]["cards"] = [card for card in self.hands[name]["cards"] if card not in cards]
+        except KeyError:
+            raise Exception(f"{name} is not being tracked.")
+
+    def DealHand(self):
+        # assert enough cards are in the deck to deal
+        if 5 > len(self.DECK):
+            Exception("There are not enough cards remaining in the deck.")
+        
+        # return a five card hand
+        hand = [next(self.DECK) for _ in range(5)]
+        return hand
+
+    def DealPlayersIn(self):
+        # determine if enough cards are in the deck to deal everyone hands
+        players = self.TrackedPlayers()
+        if len(players) * 5 > len(self.DECK):
+            Exception("There are not enough cards remaining to deal all players hands.")
+
+        # deal hands to tracked players
+        for player in players:
+            hand = self.DealHand()
+            self.AssignCards(player, hand)
+
+    def SwapCards(self, discards):
+        # assert enough cards in deck
+        if len(self.DECK) < len(discards):
+            raise Exception(f"Not enough cards in deck to swap {discards}.")
+
+        # get new cards and return them
+        new_cards = [next(self.DECK) for _ in range(len(discards))]
+        return new_cards
+
+    def SwapPlayersCards(self, name, discards):
+        # assert enough cards in deck
+        if len(self.DECK) < len(discards):
+            raise Exception(f"Not enough cards in deck to swap {discards}.")
+
+        # remove discards from hand
+        self.UnassignCards(name, discards)
+
+        # get new cards and assign to player
+        new_cards = [next(self.DECK) for _ in range(len(discards))]
+        self.AssignCards(name, new_cards)
+
+    def AllowDiscards(self, hand, discards):
+        # assert 5 card hands
+        if len(hand) != 5 or len(discards) > 5:
+            raise Exception("Unknown variant of poker.")
+
+        # the whole hand cannot be discarded
         if len(discards) == 5:
             return False
-        if len(discards) == 4 and self.ExtractProduct(remaining) % 41: 
-            return False
-        return True
 
-    def EditHand(self, name, discards):
-        # remove discards from hand
-        self.hands[name]["cards"] = list(filter(lambda x : x not in discards, self.hands[name]["cards"]))
-        # fill hand with cards from deck and return hand
-        while len(self.hands[name]["cards"]) < 5:
-            self.hands[name]["cards"].append(next(self.DECK))
-        return self.hands[name]["cards"]
+        # if four cards are discarded the last card must be an ace
+        remaining = [card for card in hand if card not in discards]
+        # hand will be multiple of 41 if it has an ace, otherwise it will have a remainder 
+        if len(discards) == 4 and self.PrimesEncoding(remaining) % 41: 
+            return False
+
+        # discard request approved
+        return True
     
-    def CollectHands(self):
-        # reset hand tracker
+    def Collect(self):
+        # reset trackers
         self.hands = {}
-        # reset deck tracker
         self.DECK.Collect()
+
+    def ShuffleDeck(self):
+        # shuffle deck
         self.DECK.Shuffle()
 
     def LoadData(self):
+        # store ciphers for reading and encoding hands for fast hand ranking
+        PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41)
+        DV = {char : 2 ** i for i, char in enumerate("23456789TJQKA")}
+        DP = {char : PRIMES[i] for i, char in enumerate("23456789TJQKA")}
+        CLASSES = {
+            "HC" : "high card", 
+            "1P" : "pair", 
+            "2P" : "two pair", 
+            "3K" : "three of a kind", 
+            "SS" : "straight", 
+            "FF" : "flush", 
+            "FH" : "full house", 
+            "4K" : "four of a kind", 
+            "SF" : "straight flush",
+            "RF" : "royal flush"}
+
         # store hand ranks of hands with flushes
         self.FLUSH_RANKS = {}
         with open("data/flushes.txt", "r") as file:
             for line in file:
-                load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[int(x)]], "45678"))
-                self.FLUSH_RANKS[load_v] = int(str(line)[11:])
+                hand = reduce(lambda x, y : x+y, map(lambda x : DV[line[int(x)]], "45678"))
+                self.FLUSH_RANKS[hand] = []
+                self.FLUSH_RANKS[hand].append(int(str(line)[11:]))
+                self.FLUSH_RANKS[hand].append(CLASSES[str(line[:2])])
+
         # store hand ranks of hands with 5 unique card values
         self.UNIQUE5_RANKS = {}
         with open("data/uniquefive.txt", "r") as file:
             for line in file:
-                load_v = reduce(lambda x, y : x+y, map(lambda x : self.DV[line[int(x)]], "45678"))
-                self.UNIQUE5_RANKS[load_v] = int(str(line)[11:])
+                hand = reduce(lambda x, y : x+y, map(lambda x : DV[line[int(x)]], "45678"))
+                self.UNIQUE5_RANKS[hand] = []
+                self.UNIQUE5_RANKS[hand].append(int(str(line)[11:]))
+                self.UNIQUE5_RANKS[hand].append(CLASSES[str(line[:2])])
+
         # store hand ranks of hands with duplicate card values
         self.DUPE_RANKS = {}
         with open("data/dupes.txt", "r") as file:
             for line in file:
-                load_p = reduce(lambda x, y : x*y, map(lambda x : self.DP[line[int(x)]], "45678"))
-                self.DUPE_RANKS[load_p] = int(str(line)[11:])
+                hand = reduce(lambda x, y : x*y, map(lambda x : DP[line[int(x)]], "45678"))
+                self.DUPE_RANKS[hand] = []
+                self.DUPE_RANKS[hand].append(int(str(line)[11:]))
+                self.DUPE_RANKS[hand].append(CLASSES[str(line[:2])])
 
-    def CheckFlush(self, cards):
-        # check if hand contains flush
+    def HasFlush(self, cards):
+        # check if hand contains flush by looking at suit bits of each card
         suit_mask = 15 << 12
-        has_flush = reduce(lambda x, y : x&y, map(lambda x : x.b, cards)) & suit_mask
+        has_flush = reduce(lambda x, y : x&y, map(lambda x : int(x), cards)) & suit_mask
         return bool(has_flush)
 
-    def CheckUnique5(self, cards):
-        # check if hand contains 5 unique card values
-        values = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
+    def HasUnique5(self, cards):
+        # check if hand contains 5 unique card values by looking at value bits of each card
+        values = reduce(lambda x, y : x|y, map(lambda x : int(x), cards)) >> 16
         has_unique5 = bin(values).count("1") == 5
         return has_unique5
 
-    def ExtractSum(self, cards):
-        # convert hand to int by summing powers of two encoding card values
-        return reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
+    def TwosEncoding(self, cards):
+        # convert hand to int as sum of powers of two
+        return reduce(lambda x, y : x|y, map(lambda x : int(x), cards)) >> 16
 
-    def ExtractProduct(self, cards):
-        # convert hand to int by multiplying prime numbers encoding card values
-        return reduce(lambda x, y : x*y, map(lambda x : x.b & 255, cards))
+    def PrimesEncoding(self, cards):
+        # convert hand to int, as product of primes
+        return reduce(lambda x, y : x*y, map(lambda x : int(x) & 255, cards))
 
-    def EvaluateHand(self, name):
-        # find hand rank of players hand
-        if self.CheckFlush(self.hands[name]["cards"]):
-            key = self.ExtractSum(self.hands[name]["cards"])
-            self.hands[name]["rank_n"] = self.FLUSH_RANKS[key]
-        elif self.CheckUnique5(self.hands[name]["cards"]):
-            key = self.ExtractSum(self.hands[name]["cards"])
-            self.hands[name]["rank_n"] = self.UNIQUE5_RANKS[key]
+    def EvaluateHand(self, hand):
+        # assert 5 card hands
+        if len(hand) != 5 :
+            raise Exception("Unknown variant of poker.")
+
+        # encode hand as int and use as key to get rank
+        if self.HasFlush(hand):
+            key = self.TwosEncoding(hand)
+            return self.FLUSH_RANKS[key]
+        elif self.HasUnique5(hand):
+            key = self.TwosEncoding(hand)
+            return self.UNIQUE5_RANKS[key]
         else:
-            key = self.ExtractProduct(self.hands[name]["cards"])
-            self.hands[name]["rank_n"] = self.DUPE_RANKS[key]
+            key = self.PrimesEncoding(hand)
+            return self.DUPE_RANKS[key]
 
-        # derive hand classification [SLOW] and return players hand tracker
-        c = 10 - len(list(filter(lambda x : self.hands[name]["rank_n"] >= x, self.BOUNDARIES)))
-        self.hands[name]["rank_c"] = self.CLASSES[c]
-        return self.hands[name]
+    def EvaluatePlayersIn(self):
+        # evaluate hands of players being tracked and store the info
+        for player in self.TrackedPlayers():
+            hand = self.hands[player]["cards"]
+            rank_n, rank_c = self.EvaluateHand(hand)
+            self.hands[player]["rank_n"] = rank_n
+            self.hands[player]["rank_c"] = rank_c
 
-    def EvaluateHands(self):
-        # evaluate all hands and return hand tracker
-        for name in self.hands.keys():
-            self.EvaluateHand(name)
-        return self.hands
+    def TrackedPlayers(self):
+        return self.hands.keys()
 
-    def DemoEvaluate(self, cards):
-        # evaluate injected hand without player tracking
-        if self.CheckFlush(cards):
-            key = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
-            rank_n = self.FLUSH_RANKS[key]
-        elif self.CheckUnique5(cards):
-            key = reduce(lambda x, y : x|y, map(lambda x : x.b, cards)) >> 16
-            rank_n = self.UNIQUE5_RANKS[key]
-        else:
-            key = reduce(lambda x, y : x*y, map(lambda x : x.b & 255, cards))
-            rank_n = self.DUPE_RANKS[key]
+    def TrackedHand(self, name):
+        # assert player is being tracked and return hand
+        try:
+            return self.hands[name]["cards"]
+        except KeyError:
+            raise Exception(f"{name} is not being tracked.")
 
-        c = 10 - len(list(filter(lambda x : rank_n >= x, self.BOUNDARIES)))
-        rank_c = self.CLASSES[c]
-
-        return {"rank_c": rank_c, "rank_n": rank_n}
-
-    def DemoDeal(self):
-        # return five unique cards without hand and deck tracking
-        deck = Deck()
-        hand = []
-        for _ in range(5):
-            hand.append(next(deck))
-        return hand
+    
 
 
 class SeatTracker(object):
@@ -543,22 +602,26 @@ class Dealer(object):
         player = self.seats.button["player"]
         print(f"[BUTTON] The button was given to {player}.")
 
+    def ShuffleDeck(self):
+        self.cards.ShuffleDeck()
         
     def DealHands(self):
-        # determine players in the round
+        # determine players in the round and begin tracking
         names = self.seats.DealingOrder()
+        self.cards.TrackPlayers(names)
         # deal and evaluate hands and log
-        self.cards.DealHands(names)
-        self.cards.EvaluateHands()
+        self.cards.DealPlayersIn()
+        self.cards.EvaluatePlayersIn()
         print(f"[CARDS] Hands have been dealt.")
         # initialise player statuses
         self.action.NewRound(names)
     
     def EditHand(self, name, discards):
+        hand = self.cards[name]["cards"]
         # act on discard request and return success or not
-        if self.cards.ApproveDiscards(name, discards):
-            self.cards.EditHand(name, discards)
-            self.cards.EvaluateHand(name)
+        if self.cards.AllowDiscards(hand, discards):
+            self.cards.SwapPlayersCards(name, discards)
+            self.cards.EvaluatePlayersIn()
             # log approved request
             if discards:
                 print(f"[CARDS] {name} swapped {len(discards)} cards.")
@@ -569,7 +632,7 @@ class Dealer(object):
         
     def CollectCards(self):
         # collect all cards and log
-        self.cards.CollectHands()
+        self.cards.Collect()
         print(f"[CARDS] Cards have been collected.")
         print(f"[CARDS] The deck has been shuffled.")
         
@@ -788,6 +851,7 @@ class PlayGame(object):
         print(f"\n[NEW ROUND]")
         self.dealer.MoveButton()
         self.dealer.TakeAnte()
+        self.dealer.ShuffleDeck()
         self.dealer.DealHands()
         return True
 
