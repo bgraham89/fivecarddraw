@@ -11,7 +11,7 @@ class Card(object):
             value %= 13
             suit %= 4
         except TypeError:
-            raise Exception("Card objects only allow integers as arguments.")
+            raise TypeError("Card objects only allow integers as arguments.")
 
         # encode card as integer for fast hand ranking
         self.MASK = "xxxAKQJT98765432♣♢♡♠RRRRxxPPPPPP"
@@ -71,7 +71,7 @@ class Deck(object):
         try:
             top_card = self.RemainingCards()[0]
         except IndexError:
-            raise StopIteration()
+            raise StopIteration("No more cards in the deck")
 
         # return first remaining card as top card and update tracker
         self.t += 1
@@ -129,12 +129,23 @@ class HandTracker(object):
         # initialise player tracking
         self.hands = {name : {"cards" : []} for name in names}
 
+    def UntrackPlayers(self, names):
+        # stop tracking players
+        if names == self.TrackedPlayers():
+            self.hands = {} 
+        else:
+            for i in range(len(names)):
+                try:
+                    del self.hands[names[i]]
+                except KeyError:
+                    raise KeyError(f"{names[i]} is not being tracked.")
+
     def AssignCards(self, name, cards):
         # assert player is being tracked and update tracker
         try:
             self.hands[name]["cards"].extend(cards)
         except KeyError:
-            raise Exception(f"{name} is not being tracked.")
+            raise KeyError(f"{name} is not being tracked.")
 
     def UnassignCards(self, name, cards):
         # assert player is holding all cards
@@ -145,7 +156,7 @@ class HandTracker(object):
         try:
             self.hands[name]["cards"] = [card for card in self.hands[name]["cards"] if card not in cards]
         except KeyError:
-            raise Exception(f"{name} is not being tracked.")
+            raise KeyError(f"{name} is not being tracked.")
 
     def DealHand(self):
         # assert enough cards are in the deck to deal
@@ -208,8 +219,9 @@ class HandTracker(object):
     
     def Collect(self):
         # reset trackers
-        self.hands = {}
         self.DECK.Collect()
+        players = self.TrackedPlayers()
+        self.UntrackPlayers(players)
 
     def ShuffleDeck(self):
         # shuffle deck
@@ -311,9 +323,7 @@ class HandTracker(object):
         try:
             return self.hands[name]["cards"]
         except KeyError:
-            raise Exception(f"{name} is not being tracked.")
-
-    
+            raise KeyError(f"{name} is not being tracked.")
 
 
 class SeatTracker(object):
@@ -604,6 +614,7 @@ class Dealer(object):
 
     def ShuffleDeck(self):
         self.cards.ShuffleDeck()
+        print(f"[CARDS] The deck has been shuffled.")
         
     def DealHands(self):
         # determine players in the round and begin tracking
@@ -634,7 +645,6 @@ class Dealer(object):
         # collect all cards and log
         self.cards.Collect()
         print(f"[CARDS] Cards have been collected.")
-        print(f"[CARDS] The deck has been shuffled.")
         
     def TakeAnte(self):
         # take ante from players
@@ -849,9 +859,9 @@ class PlayGame(object):
 
         # begin new round
         print(f"\n[NEW ROUND]")
+        self.dealer.ShuffleDeck()
         self.dealer.MoveButton()
         self.dealer.TakeAnte()
-        self.dealer.ShuffleDeck()
         self.dealer.DealHands()
         return True
 
