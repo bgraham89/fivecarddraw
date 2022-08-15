@@ -1,6 +1,6 @@
 # Data
 
-This folder contains information that is used to populate some memos in the ```HandTracker``` class upon initialisation. The memos essentially store a numerical score for each possible poker hand, which provides a mechanism to rank players hands, efficiently. More info can be found in [hand.ipynb](../notebooks/hand.ipynb) notebook.
+This folder contains information that is used to populate some memos in the ```HandTracker``` class upon initialisation. The memos essentially store a numerical score for each possible poker hand, which provides a mechanism to rank players hands, efficiently. More info can be found in [hand.ipynb](../docs/hand.ipynb) notebook.
 
 ## Special Thanks
 

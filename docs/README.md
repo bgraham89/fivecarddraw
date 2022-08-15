@@ -1,3 +1,3 @@
 # Docs
 
-This folder contains details about the fivecarddraw.py model of five card draw poker.
+This folder contains documentation about the datastructures, algorithms and application of fivecarddraw.py.
