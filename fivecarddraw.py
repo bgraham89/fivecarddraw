@@ -109,22 +109,6 @@ class HandTracker(object):
         # load data containing all hand ranks
         self.LoadData()
 
-    def __call__(self, info):
-        # reset trackers
-        self.Collect()
-
-        # load info
-        self.hands = info
-
-        # prepare deck state
-        departed_cards = [card for name in info for card in name["cards"]]
-        remaining_cards = [card for card in self.DECK.state if card not in departed_cards]
-        self.DECK.state = departed_cards + remaining_cards
-
-        # prepare deck tracker
-        t = len(departed_cards)
-        self.DECK.t = t
-
     def TrackPlayers(self, names):
         # initialise player tracking
         self.hands = {name : {"cards" : []} for name in names}

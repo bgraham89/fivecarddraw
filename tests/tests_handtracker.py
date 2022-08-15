@@ -1,3 +1,4 @@
+import enum
 import unittest
 from random import randint
 from fivecarddraw import Card, HandTracker
@@ -203,6 +204,149 @@ class HandTrackerTest(unittest.TestCase):
                     self.assertIn(card, self.tracker.DECK.DepartedCards())
                     # check each card is unique in deck
                     self.assertEqual(self.tracker.DECK.DepartedCards().count(card), 1)
+
+
+    def testEncoding(self):
+        # selected hands
+        hands = [
+            [Card(5,0), Card(3,1), Card(2,2), Card(1,3), Card(0,0)],
+            [Card(5,0), Card(5,1), Card(6,2), Card(7,3), Card(8,0)],
+            [Card(5,0), Card(5,1), Card(2,2), Card(2,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(10,3), Card(11,0)],
+            [Card(11,0), Card(10,1), Card(9,2), Card(8,3), Card(7,0)],
+            [Card(5,0), Card(3,0), Card(2,0), Card(1,0), Card(0,0)],
+            [Card(7,0), Card(7,1), Card(9,2), Card(9,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(5,3), Card(0,0)],
+            [Card(4,1), Card(3,1), Card(2,1), Card(1,1), Card(0,1)],
+            [Card(12,2), Card(11,2), Card(10,2), Card(9,2), Card(8,2)]]
+        
+        twos = [47, 480, 548, 3104, 3968, 47, 640, 33, 31, 7936]
+        primes = [2730, 1255501, 122525, 2519959, 14535931, 2730, 8804429, 57122, 2310, 31367009]
+
+        for i, hand in enumerate(hands):
+            # check twos encoding
+            self.assertEqual(self.tracker.TwosEncoding(hand), twos[i])
+            # check twos encoding
+            self.assertEqual(self.tracker.PrimesEncoding(hand), primes[i])
+
+
+    def testFeatureChecking(self):
+        # selected hands
+        hands = [
+            [Card(5,0), Card(3,1), Card(2,2), Card(1,3), Card(0,0)],
+            [Card(5,0), Card(5,1), Card(6,2), Card(7,3), Card(8,0)],
+            [Card(5,0), Card(5,1), Card(2,2), Card(2,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(10,3), Card(11,0)],
+            [Card(11,0), Card(10,1), Card(9,2), Card(8,3), Card(7,0)],
+            [Card(5,0), Card(3,0), Card(2,0), Card(1,0), Card(0,0)],
+            [Card(7,0), Card(7,1), Card(9,2), Card(9,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(5,3), Card(0,0)],
+            [Card(4,1), Card(3,1), Card(2,1), Card(1,1), Card(0,1)],
+            [Card(12,2), Card(11,2), Card(10,2), Card(9,2), Card(8,2)]]
+        
+        # check flushes are recognised
+        for i, hand in enumerate(hands):
+            if i in [5, 8, 9]:
+                self.assertTrue(self.tracker.HasFlush(hand))
+            else:
+                self.assertFalse(self.tracker.HasFlush(hand))
+
+        # check duplicates are recognised
+        for i, hand in enumerate(hands):
+            if i in [0, 4, 5, 8, 9]:
+                self.assertTrue(self.tracker.HasUnique5(hand))
+            else:
+                self.assertFalse(self.tracker.HasUnique5(hand))
+
+        
+    def testHandRankDicts(self):
+        # check each hand rank dict has correct amount of keys
+        self.assertEqual(len(self.tracker.DUPE_RANKS), 4888)
+        self.assertEqual(len(self.tracker.UNIQUE5_RANKS), 1287)
+        self.assertEqual(len(self.tracker.FLUSH_RANKS), 1287)
+
+        # check each entry has correct structure
+        for v in self.tracker.DUPE_RANKS.values():
+            self.assertEqual(len(v), 2)
+            self.assertIsInstance(v[0], int)
+            self.assertIsInstance(v[1], str)
+        for v in self.tracker.UNIQUE5_RANKS.values():
+            self.assertEqual(len(v), 2)
+            self.assertIsInstance(v[0], int)
+            self.assertIsInstance(v[1], str)
+        for v in self.tracker.FLUSH_RANKS.values():
+            self.assertEqual(len(v), 2)
+            self.assertIsInstance(v[0], int)
+            self.assertIsInstance(v[1], str)
+
+        # selected hands
+        hands = [
+            [Card(5,0), Card(3,1), Card(2,2), Card(1,3), Card(0,0)],
+            [Card(5,0), Card(5,1), Card(6,2), Card(7,3), Card(8,0)],
+            [Card(5,0), Card(5,1), Card(2,2), Card(2,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(10,3), Card(11,0)],
+            [Card(11,0), Card(10,1), Card(9,2), Card(8,3), Card(7,0)],
+            [Card(5,0), Card(3,0), Card(2,0), Card(1,0), Card(0,0)],
+            [Card(7,0), Card(7,1), Card(9,2), Card(9,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(5,3), Card(0,0)],
+            [Card(4,1), Card(3,1), Card(2,1), Card(1,1), Card(0,1)],
+            [Card(12,2), Card(11,2), Card(10,2), Card(9,2), Card(8,2)]]
+
+
+        # check correct keys in dictionaries
+        for i, hand in enumerate(hands):
+            if i in [5, 8, 9]:
+                self.assertIn(self.tracker.TwosEncoding(hand), self.tracker.FLUSH_RANKS)
+            elif i in [0, 4]:
+                self.assertIn(self.tracker.TwosEncoding(hand), self.tracker.UNIQUE5_RANKS)
+            else:
+                self.assertIn(self.tracker.PrimesEncoding(hand), self.tracker.DUPE_RANKS)
+    
+
+    def testEvaluating(self):
+        # selected hands
+        hands = [
+            [Card(5,0), Card(3,1), Card(2,2), Card(1,3), Card(0,0)],
+            [Card(5,0), Card(5,1), Card(6,2), Card(7,3), Card(8,0)],
+            [Card(5,0), Card(5,1), Card(2,2), Card(2,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(10,3), Card(11,0)],
+            [Card(11,0), Card(10,1), Card(9,2), Card(8,3), Card(7,0)],
+            [Card(5,0), Card(3,0), Card(2,0), Card(1,0), Card(0,0)],
+            [Card(7,0), Card(7,1), Card(9,2), Card(9,3), Card(9,0)],
+            [Card(5,0), Card(5,1), Card(5,2), Card(5,3), Card(0,0)],
+            [Card(4,1), Card(3,1), Card(2,1), Card(1,1), Card(0,1)],
+            [Card(12,2), Card(11,2), Card(10,2), Card(9,2), Card(8,2)]]
+
+        # check cant evaluate hands that have less than 5 cards
+        for i in range(4):
+            self.assertRaises(Exception, self.tracker.EvaluateHand, hands[0][:i])
+        # check cant evaluate hands that have more than 5 cards
+            self.assertRaises(Exception, self.tracker.EvaluateHand, hands[0]+hands[1])
+            
+        categories = ["high card", "pair", "two pair", "three of a kind", "straight", 
+            "flush", "full house", "four of a kind", "straight flush","royal flush"]
+
+        numbers = [7462, 5030, 3186, 2083, 1601, 1599, 207, 106, 9, 1]
+        
+        # untracked hands
+        for i, hand in enumerate(hands):
+            # check hand is numerically ranked correctly
+            self.assertEqual(self.tracker.EvaluateHand(hand)[0], numbers[i])
+            # check hand is categorised correctly
+            self.assertEqual(self.tracker.EvaluateHand(hand)[1], categories[i])
+
+        # tracked hands
+        names = [f"{j}" for j in range(10)]
+        self.tracker.TrackPlayers(names)
+        for name in names:
+            self.tracker.AssignCards(name, hands[int(i)])
+        self.tracker.EvaluatePlayersIn()
+
+        for name in self.tracker.TrackedPlayers():
+            # check hand is numerically ranked correctly
+            self.assertEqual(self.tracker.hands[name]["rank_n"], numbers[int(i)])
+            # check hand is categorised correctly
+            self.assertEqual(self.tracker.hands[name]["rank_c"], categories[int(i)])
 
 
 if __name__ == "__main__":
