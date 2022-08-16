@@ -1,3 +1,4 @@
+from codecs import namereplace_errors
 from functools import reduce
 from itertools import groupby
 from math import inf
@@ -187,17 +188,14 @@ class HandTracker(object):
         # assert 5 card hands
         if len(hand) != 5 or len(discards) > 5:
             raise Exception("Unknown variant of poker.")
-
         # the whole hand cannot be discarded
         if len(discards) == 5:
             return False
-
         # if four cards are discarded the last card must be an ace
         remaining = [card for card in hand if card not in discards]
         # hand will be multiple of 41 if it has an ace, otherwise it will have a remainder 
         if len(discards) == 4 and self.PrimesEncoding(remaining) % 41: 
             return False
-
         # discard request approved
         return True
     
@@ -312,75 +310,110 @@ class HandTracker(object):
 
 class SeatTracker(object):
     def __init__(self, amount_seats):
-        # initialise seat and player tracking
+        # initialise seat tracking
         self.seats = ["" for _ in range(amount_seats)]
+        # initialise player and button tracking
         self.players = {}
-
-        # initialise button tracking
-        self.button = {"seat" : -1, "player" : "", "queue" : self.seats}
-
+        self.button = {"seat" : -1, "player" : ""}
         # store input parameters
-        self.count = amount_seats
+        self.l = amount_seats
 
-    def AddPlayer(self, name, seat):
-        # begin tracking player
+    def __iter__(self):
+        # seats with button seat last
+        b_seat = self.button["seat"]
+        return self.seats[b_seat+1:] + self.seats[:b_seat+1]
+
+    def __len__(self):
+        return self.l
+
+    def OccupySeat(self, name, seat):
+        # assert name is unique
+        if name in self.seats:
+            raise Exception(f"{name} is already occupying a seat.")
+        # assert seat at table
+        if seat >= len(self) or seat < 0:
+            raise IndexError(f"No seat with index {seat}.") 
+        # assert seat is empty
+        if self.seats:
+            raise Exception(f"The seat is already occupied by {self.seats[seat]}.")
+        # occupy seat
         self.seats[seat] = name
-        self.players[name] = {}
-        self.players[name]["seat"] = seat
-        # update order that players are dealt cards
-        self.UpdateDealingOrder()
 
-    def KickPlayer(self, name):
-        # stop tracking player
-        seat = self.players[name]["seat"]
+    def EmptySeat(self, seat):
+        # assert seat at table
+        if seat >= len(self) or seat < 0:
+            raise IndexError(f"No seat with index {seat}.")
+        # assert seat is occupied
+        if self.seats:
+            raise Exception(f"The seat {seat} wasn't occupied.")
+        # empty seat
         self.seats[seat] = ""
-        del self.players[name]
-        # update order that players are dealt cards
-        self.UpdateDealingOrder()
+        
+    def TrackPlayers(self, names):
+        # initialise player tracking
+        try:
+            self.players = {name : {"seat" : self.seats.index(name)} for name in names}
+        except ValueError:
+            raise ValueError("Can't track players who aren't seated.")
 
-    def AddPlayers(self, players):
-        # fill available seats with players
-        for assignment in zip(players, self.AvailableSeats()):
-            name = assignment[0]
-            empty_seat = assignment[1]
-            self.AddPlayer(name, empty_seat)
+    def UntrackPlayers(self, names):
+        # stop tracking players
+        if names == self.TrackedPlayers():
+            self.players = {} 
+        else:
+            for i in range(len(names)):
+                try:
+                    del self.players[names[i]]
+                except KeyError:
+                    raise KeyError(f"{names[i]} is not being tracked.")
 
-    def NextButtonPlayer(self):
-        # find player to give button to
+    def SeatPlayers(self, players):
+        # select seats
+        seats = self.AvailableSeats()
+        shuffle(seats)
+        # assert enough seats
+        if len(players) > len(seats):
+            raise Exception(f"There is not enough available seats for {players}.")
+        for assignment in zip(players, seats):
+            # occupy seats
+            name, empty_seat = assignment
+            self.OccupySeat(name, empty_seat)
+        # track players
+        self.TrackPlayers(players)
+
+    def KickPlayers(self, names):
+        for name in names:
+            # assert player is seated
+            if name not in self.TrackedPlayers():
+                raise KeyError(f"{name} wasn't being tracked.")
+            # empty seat
+            seat = self.players[name]["seat"]
+            self.EmptySeat(seat)
+        # untrack players
+        self.UntrackPlayers(names)
+
+    def TrackButton(self):
+        # store player with button if there is one
+        b_seat = self.button["seat"]
+        self.button["player"] = self.seats[b_seat]
+
+    def MoveButton(self):
+        # find player to give button to if possible
         while True:
             # check each seat for a player
             seat = self.button["seat"]
             seat += 1
-            seat %= self.count
+            seat %= len(self)
             self.button["seat"] = seat
-            # check if player is at seat or whether there are seated players
-            if self.seats[seat] or not self.Names():
-                self.UpdateDealingOrder() 
+            # stop if player is at seat or there are no seated players
+            if self.seats[seat] or not self.TrackedPlayers():
                 break
-        # return a players name or an empty string if nobody is seated
-        return self.button 
+        # update button tracker
+        self.TrackButton()
 
-    def UpdateDealingOrder(self):
-        # determine order that players should be dealt hands
-        seat = self.button["seat"]
-        self.button["player"] = self.seats[seat]
-        self.button["queue"] = [name for name in self.seats[seat+1:] + self.seats[:seat+1] if name]
-
-    def DealingOrder(self):
-        # return order that players should be dealt hands
-        return self.button["queue"] 
-
-    def PreflopOrder(self):
-        # determine order that players should take turns preflop
-        name = self.DealingOrder()[2 % len(self.Names())]
-        seat = self.players[name]["seat"]
-        queue = [name for name in self.seats[seat:] + self.seats[:seat] if name]
-        # return order that players should take turns preflop
-        return queue
-
-    def Names(self):
-        # return all seated players
-        return [occupant for occupant in self.seats if occupant]
+    def TrackedPlayers(self):
+        # return all tracked players
+        return self.players.keys()
 
     def AvailableSeats(self):
         # return all empty seats
@@ -392,6 +425,21 @@ class ChipTracker(object):
         # initialise player and rules trackers
         self.gameinfo = {"ante" : 0}
         self.players = {}
+
+    def TrackPlayers(self, names):
+        # initialise player tracking
+        self.players = {name : {"stack" : 0, "contribution" : 0 } for name in names}
+
+    def UntrackPlayers(self, names):
+        # stop tracking players
+        if names == self.TrackedPlayers():
+            self.players = {} 
+        else:
+            for i in range(len(names)):
+                try:
+                    del self.players[names[i]]
+                except KeyError:
+                    raise KeyError(f"{names[i]} is not being tracked.")
 
     def AddChipsPlayer(self, name, amount):
         # determine players current stack or set it to zero.
@@ -499,6 +547,13 @@ class ChipTracker(object):
         else:
             status["bet_nothing"] = True
         return status
+
+    def TrackedPlayers(self):
+        # return all tracked players
+        return self.players.keys()
+
+    def SkintPlayers(self):
+        return [player for player in self.TrackedPlayers() if self.ChipStacks(player) < self.GetAnte()]
             
 
 class ActionTracker(object):
@@ -506,6 +561,17 @@ class ActionTracker(object):
         # initialise players and species tracker
         self.players = {}
         self.beings = {"humans" : [], "bots" : []}
+
+    def UntrackPlayers(self, names):
+        # stop tracking players
+        if names == self.TrackedPlayers():
+            self.players = {} 
+        else:
+            for i in range(len(names)):
+                try:
+                    del self.players[names[i]]
+                except KeyError:
+                    raise KeyError(f"{names[i]} is not being tracked.")
 
     def NewRound(self, names):
         # set players statuses to false
@@ -532,6 +598,16 @@ class ActionTracker(object):
         self.beings["bots"].remove(name)
         if name in self.players:
             del self.players[name]
+
+    def KickPlayers(self, names):
+        for name in names:
+            # assert player is seated
+            if name not in self.TrackedPlayers():
+                raise KeyError(f"{name} wasn't being tracked.")
+            # kick bot
+            self.KickBot(name)
+        # untrack players
+        self.UntrackPlayers(names)
 
     def SelectAmount(self, name, info):
         # determine species and get a bet amount request
@@ -575,11 +651,14 @@ class ActionTracker(object):
 
     def ShowdownPlayers(self, dealing_order):
         # return players who have not folded
-        return [name for name in dealing_order if not self.players[name]["has_folded"]]
+        return [name for name in dealing_order if name and not self.players[name]["has_folded"]]
 
     def ActingPlayers(self, action_order):
         # return players who have not folded or gone all in
-        return [name for name in action_order if not self.players[name]["has_folded"] and not self.players[name]["has_allin"]]
+        return [name for name in action_order if name and not self.players[name]["has_folded"] and not self.players[name]["has_allin"]]
+
+    def TrackedPlayers(self):
+        return self.players.keys()
 
 
 class Dealer(object):
@@ -592,7 +671,7 @@ class Dealer(object):
         
     def MoveButton(self):
         # move button to next player and log
-        self.seats.NextButtonPlayer()
+        self.seats.MoveButton()
         player = self.seats.button["player"]
         print(f"[BUTTON] The button was given to {player}.")
 
@@ -602,7 +681,7 @@ class Dealer(object):
         
     def DealHands(self):
         # determine players in the round and begin tracking
-        names = self.seats.DealingOrder()
+        names = self.seats.TrackedPlayers()
         self.cards.TrackPlayers(names)
         # deal and evaluate hands and log
         self.cards.DealPlayersIn()
@@ -632,7 +711,9 @@ class Dealer(object):
         
     def TakeAnte(self):
         # take ante from players
-        for name in self.seats.DealingOrder():
+        for name in self.seats:
+            if not name:
+                continue
             amount = self.chips.GetAnte()
             status = self.chips.CheckAnte(name)
             # log all-in or not
@@ -687,7 +768,7 @@ class Dealer(object):
         # initialise info tracker and return it
         info = {}
         # add info about each player
-        for name in self.seats.Names():
+        for name in self.seats.TrackedPlayers():
             info[name] = {}
             info[name]["seat"] = self.seats.players[name]
             info[name]["chips"] = self.chips.players[name]
@@ -705,7 +786,7 @@ class Dealer(object):
     def TableView(self, viewer):
         # initialise info tracker and return it
         info = {"self" : {}, "others" : {}, "game" : {}}
-        for name in self.seats.Names():
+        for name in self.seats.TrackedPlayers():
             # add info about viewer
             if viewer == name:
                 info["self"]["seat"] = self.seats.players[name]
@@ -724,19 +805,19 @@ class Dealer(object):
         info["game"]["pot"] = self.chips.PotTotal()
         return info
 
-    def KickPlayer(self, name):
-        # stop tracking player
-        self.seats.KickPlayer(name)
-        self.chips.WithdrawChipsPlayer(name)
-        self.action.KickBot(name)
-        print(f"[PLAYER] {name} is leaving the table.")
+    def KickPlayers(self, names):
+        self.seats.KickPlayers(names)
+        self.action.KickPlayers(names)
+        self.chips.UntrackPlayers(names)
+        for name in names:
+            print(f"[PLAYER] {name} is leaving the table.")
          
     def Payout(self):
         # get data to determine size of rewards
         info = self.PlayerInfo()
         rewards = self.chips.CalculateRewards(info)
         # get info to determine order to pay rewards
-        showdown = self.action.ShowdownPlayers(self.seats.DealingOrder())
+        showdown = self.action.ShowdownPlayers(self.seats)
         
         # check if hand reveal step can be skipped
         if len(rewards) < 2:
@@ -770,7 +851,7 @@ class Dealer(object):
 
     def StartingChips(self, amount):
         # give chips to all players
-        for name in self.seats.Names():
+        for name in self.seats.TrackedPlayers():
             self.chips.AddChipsPlayer(name, amount)
         print(f"[SETUP] All players have been given {amount} chips.")
 
@@ -779,16 +860,35 @@ class Dealer(object):
         self.chips.SetAnte(amount)
         print(f"[SETUP] The ante has been set to {amount} chips.")
 
+    def TrackedPlayers(self):
+        # return all tracked players
+        return self.seats.TrackedPlayers()
+
+    def DealingOrder(self):
+        # determine order that players should take turns postflop
+        return [occupant for occupant in self.seats if occupant]
+
+    def PreflopOrder(self):
+        # determine order that players should take turns preflop
+        name = self.DealingOrder()[2 % len(self.TrackedPlayers())]
+        seat = self.players[name]["seat"]
+        queue = [name for name in self.seats[seat:] + self.seats[:seat] if name]
+        # return order that players should take turns preflop
+        return queue
+
+    def SkintPlayers(self):
+        return self.chips.SkintPlayers()
+
     def Summary(self):
         # log summary of player chips
-        for name in self.seats.Names():
+        for name in self.seats.TrackedPlayers():
             print(f"[STANDINGS] {name} has got {self.chips.players[name]['stack']} chips remaining.")
 
     def InitializeTable(self, humans, bots, starting_chips):
         # seat players
         players = humans + bots
         shuffle(players)
-        self.seats.AddPlayers(players)
+        self.seats.SeatPlayers(players)
         # track species
         self.action.AddHumans(humans)
         self.action.AddBots(bots)
@@ -832,12 +932,11 @@ class PlayGame(object):
             return False
 
         # kick bots with few chips
-        for name in self.dealer.seats.Names():
-            if not self.dealer.chips.players[name]["stack"] or self.dealer.chips.players[name]["stack"] < self.ANTE:
-                self.dealer.KickPlayer(name)
+        for name in self.dealer.SkintPlayers():
+            self.dealer.KickPlayer(name)
 
         # check amount of players remaining
-        if len(self.dealer.seats.Names()) < 2:
+        if len(self.dealer.TrackedPlayers()) < 2:
             print(f"[END] {self.HUMAN} has won!")
             return False
 
@@ -852,9 +951,9 @@ class PlayGame(object):
     def BettingPhase(self, phase):
         # determine betting order
         if phase == "preflop":
-            action_order = self.dealer.seats.PreflopOrder()
+            action_order = self.dealer.PreflopOrder()
         if phase == "postflop":
-            action_order = self.dealer.seats.DealingOrder()
+            action_order = self.dealer.DealingOrder()
         
         # determine if betting phase can be skipped
         if len(self.dealer.action.ActingPlayers(action_order)) < 2:
@@ -884,7 +983,7 @@ class PlayGame(object):
 
     def SwitchingPhase(self):
         # determine if switching phase can be skipped
-        dealing_order = self.dealer.seats.DealingOrder()
+        dealing_order = self.dealer.seats
         if len(self.dealer.action.ShowdownPlayers(dealing_order)) < 2:
             return True
 
@@ -928,13 +1027,12 @@ class SpectateGame(PlayGame):
     
     def NewHand(self):
         # kick bots with few chips
-        for name in self.dealer.seats.Names():
-            if not self.dealer.chips.players[name]["stack"]:
-                self.dealer.KickPlayer(name)
+        for name in self.dealer.SkintPlayers():
+            self.dealer.KickPlayer(name)
 
         # check amount of players remaining
-        if len(self.dealer.seats.Names()) < 2:
-            print(f"[END] {self.dealer.seats.Names()[0]} has won!")
+        if len(self.dealer.seats.TrackedPlayers()) < 2:
+            print(f"[END] {self.dealer.seats.TrackedPlayers()[0]} has won!")
             return False
         
 
