@@ -100,7 +100,7 @@ class HandTrackerTest(unittest.TestCase):
                     self.assertEqual(self.tracker.DECK.DepartedCards().count(card), 1)
                     # check each card is unique in hand
                     self.assertEqual(hand.count(card), 1)
-            self.tracker.Collect()
+            self.tracker.CollectCards()
 
         # 1000 more hands
         for _ in range(100):
@@ -124,7 +124,7 @@ class HandTrackerTest(unittest.TestCase):
                     self.assertEqual(self.tracker.DECK.DepartedCards().count(card), 1)
                     # check each card is unique in hand
                     self.assertEqual(hand.count(card), 1)
-            self.tracker.Collect()
+            self.tracker.CollectCards()
 
 
     def testDiscardCriteria(self):
@@ -149,7 +149,7 @@ class HandTrackerTest(unittest.TestCase):
                     self.assertTrue(self.tracker.AllowDiscards(hand, hand[:4]))
                 else:
                     self.assertFalse(self.tracker.AllowDiscards(hand, hand[:4]))
-            self.tracker.Collect()
+            self.tracker.CollectCards()
 
 
     def testSwapping(self):
@@ -178,7 +178,7 @@ class HandTrackerTest(unittest.TestCase):
                         self.assertIn(card, self.tracker.DECK.DepartedCards())
                         # check each card is unique in deck
                         self.assertEqual(self.tracker.DECK.DepartedCards().count(card), 1)
-        self.tracker.Collect()
+        self.tracker.CollectCards()
 
         # tracked swaps
         self.tracker.ShuffleDeck()

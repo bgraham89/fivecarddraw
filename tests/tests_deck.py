@@ -76,7 +76,7 @@ class DeckTest(unittest.TestCase):
             # different amount of remaining cards in deck
             for _ in range(i): 
                 next(self.deck)
-            self.deck.Collect()
+            self.deck.CollectCards()
             postcollect = self.deck.RemainingCards()
             # Check remaining cards hash unaffected by collect
             self.assertEqual(set(precollect), set(postcollect))
