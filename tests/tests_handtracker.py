@@ -226,7 +226,7 @@ class HandTrackerTest(unittest.TestCase):
         for i, hand in enumerate(hands):
             # check twos encoding
             self.assertEqual(self.tracker.TwosEncoding(hand), twos[i])
-            # check twos encoding
+            # checkprimes encoding
             self.assertEqual(self.tracker.PrimesEncoding(hand), primes[i])
 
 

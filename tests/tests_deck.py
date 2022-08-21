@@ -65,7 +65,7 @@ class DeckTest(unittest.TestCase):
                 self.assertNotEqual(preshuffle[0], postshuffle[0])
             # Check departed cards completely unaffected by shuffle
             self.assertEqual(preshuffle[1], postshuffle[1])
-            self.deck.Collect()
+            self.deck.CollectCards()
 
 
     def testCollecting(self):

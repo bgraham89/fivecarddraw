@@ -242,8 +242,22 @@ class HandTracker(object):
             Shuffles order of remaining cards in deck.
         LoadData():
             Load the ratings for each possible hand in five card draw poker.
-        HasFlush():
-            Load the ratings for each possible hand in five card draw poker.
+        HasFlush(cards):
+            Determines if a hand contains a flush.
+        HasUnique5(cards):
+            Determines if a hand contains five unique valued cards.
+        TwosEncoding(cards):
+             Convert hand to a sum of powers of two.
+        PrimesEncoding(cards):
+             Convert hand to a product of prime numbers.
+        EvaluateHand(hand):
+            Get the rating of a hand.
+        EvaluatePlayersIn():
+            Store the rating of each tracked players hand.
+        TrackedPlayers():
+            Get a list of players being tracked.
+        TrackedHand(name):
+            Get a list of cards assigned to a player.
     """
 
     def __init__(self):
@@ -695,24 +709,88 @@ class HandTracker(object):
 
 
 class SeatTracker(object):
+    """
+    A class to handle seating dynamics during a game of five card draw poker.
+
+    Attributes
+    ----------
+        seats : list[str]
+            seat vacancies and occupants indexed by seat number
+        players : dict
+            player seating data
+        button : dict
+            button assignment data
+        l : int
+            the maximum player capacity of the tracker
+
+    Methods
+    -------
+        OccupySeat(name, seat):
+            Assign a player to a seat
+        EmptySeat(seat):
+            Unassign a player from a seat
+        TrackPlayers(names):
+            Begin tracking players
+        UntrackPlayers(names):
+            Stop tracking players
+        SeatPlayers(players)
+            Assign tracked players to seats
+        KickPlayers(players)
+            Unassign tracked players from seats
+        MoveButton()
+            Move button to next player
+        TrackButton()
+            Update button data
+        TrackedPlayers()
+            Get list of tracked players
+        AvailableSeats()
+            Get list of available seats
+        
+
+    """
     def __init__(self, amount_seats):
+        """
+        Constructs all the necessary attributes for the seattracker object.
+
+        Parameters
+        ----------
+            amount_seats : int
+                the maximum player capacity of the game of five card draw
+        """
         # initialise seat tracking
         self.seats = ["" for _ in range(amount_seats)]
-        # initialise player and button tracking
+        # initialise player tracking
         self.players = {}
+        # initialise button tracking
         self.button = {"seat" : -1, "player" : ""}
         # store input parameters
         self.l = amount_seats
 
     def __iter__(self):
-        # seats with button seat last
+        """Converts the seatracker object to an iterator providing each seat status up to the button seat."""
         b_seat = self.button["seat"]
         return self.seats[b_seat+1:] + self.seats[:b_seat+1]
 
     def __len__(self):
+        """Provides the amount of seats being tracked by the tracker."""
         return self.l
 
     def OccupySeat(self, name, seat):
+        """
+        Occupies a seat with a player.
+
+        Parameters
+        ----------
+            name : str
+                player's name
+            seat : int
+                index of seat to occupy
+        
+        Side effects
+        ------------
+            seats : list[str]
+                The seats attribute has an item replaced.
+        """
         # assert name is unique
         if name in self.seats:
             raise Exception(f"{name} is already occupying a seat.")
@@ -726,6 +804,19 @@ class SeatTracker(object):
         self.seats[seat] = name
 
     def EmptySeat(self, seat):
+        """
+        Empties a seat occupied by a player.
+
+        Parameters
+        ----------
+            seat : int
+                index of seat to empty
+        
+        Side effects
+        ------------
+            seats : list[str]
+                The seats attribute has an item replaced.
+        """
         # assert seat at table
         if seat >= len(self) or seat < 0:
             raise IndexError(f"No seat with index {seat}.")
@@ -736,54 +827,128 @@ class SeatTracker(object):
         self.seats[seat] = ""
         
     def TrackPlayers(self, names):
-        # initialise player tracking
-        try:
-            self.players = {name : {"seat" : self.seats.index(name)} for name in names}
-        except ValueError:
-            raise ValueError("Can't track players who aren't seated.")
+        """
+        Inserts some names into the tracker so the tracker can begin storing data about them.
+
+        Parameters
+        ----------
+            names : list[str]
+                players to track
+        
+        Side effects
+        ------------
+            players : dict
+                The players attribute gets additional keys.
+        """
+        for name in names:
+            # assert name is unique
+            if name in self.players:
+                raise Exception(f"{name} is already being tracked.")
+            # begin tracking
+            self.players.update({name : {}})
 
     def UntrackPlayers(self, names):
-        # stop tracking players
+        """
+        Removes some names from the player tracker.
+
+        Parameters
+        ----------
+            names : list[str]
+                players to stop tracking
+        
+        Side effects
+        ------------
+            players : dict
+                The players attribute has some keys removed.
+        """
         if names == self.TrackedPlayers():
+            # stop tracking all players
             self.players = {} 
         else:
+            # stop tracking some players
             for i in range(len(names)):
                 try:
                     del self.players[names[i]]
                 except KeyError:
+                    # assert name was being tracked
                     raise KeyError(f"{names[i]} is not being tracked.")
 
-    def SeatPlayers(self, players):
+    def SeatPlayers(self):
+        """
+        Allocates seats to tracked players.
+
+        Side effects
+        ------------
+            seats : list[str]
+                The seats attribute has items replaced.
+            players : dict
+                The players attribute has some values updated.
+        """
         # select seats
         seats = self.AvailableSeats()
         shuffle(seats)
+        # get players names
+        players = self.TrackedPlayers()
         # assert enough seats
         if len(players) > len(seats):
             raise Exception(f"There is not enough available seats for {players}.")
+        # allocate seats 
         for assignment in zip(players, seats):
-            # occupy seats
             name, empty_seat = assignment
+            # update seat tracker
             self.OccupySeat(name, empty_seat)
-        # track players
-        self.TrackPlayers(players)
+            # update player tracker
+            self.players[name] = empty_seat
 
-    def KickPlayers(self, names):
-        for name in names:
-            # assert player is seated
-            if name not in self.TrackedPlayers():
-                raise KeyError(f"{name} wasn't being tracked.")
-            # empty seat
+    def KickPlayers(self, players):
+        """
+        Removes players from the game.
+
+        Parameters
+        ----------
+            players : list[str]
+                players to kick from seats
+        
+        Side effects
+        ------------
+            seats : list[str]
+                The seats attribute has items replaced.
+            players : dict
+                The players attribute has some keys deleted.
+        """
+        # assert players are being tracked
+        tracked_players = self.TrackedPlayers()
+        for name in players:
+            if name not in tracked_players:
+                raise KeyError(f"{name} is not being tracked.")
+            # update seat tracker 
             seat = self.players[name]["seat"]
             self.EmptySeat(seat)
-        # untrack players
-        self.UntrackPlayers(names)
+        # update player tracker
+        self.UntrackPlayers(players)
+        
 
     def TrackButton(self):
-        # store player with button if there is one
+        """
+        Stores information about the button seat.
+
+        Side effects
+        ------------
+            button : dict
+                The button attribute has a value updated.
+        """
         b_seat = self.button["seat"]
         self.button["player"] = self.seats[b_seat]
 
     def MoveButton(self):
+        """
+        Moves the button to the next occupied seat if possible, otherwise the next empty one.
+
+        Side effects
+        ------------
+            button : dict
+                The button attribute has both values updated.
+        """
         # find player to give button to if possible
         while True:
             # check each seat for a player
@@ -798,11 +963,23 @@ class SeatTracker(object):
         self.TrackButton()
 
     def TrackedPlayers(self):
-        # return all tracked players
+        """
+        Provides the names of players being tracked.
+
+        Return value
+        ------------
+            : dict_keys
+        """
         return self.players.keys()
 
     def AvailableSeats(self):
-        # return all empty seats
+        """
+        Provides the seats that are unoccupied.
+
+        Return value
+        ------------
+            : list[int]
+        """
         return [i for i, occupant in enumerate(self.seats) if not occupant]
 
 
@@ -1270,12 +1447,16 @@ class Dealer(object):
         # log summary of player chips
         for name in self.seats.TrackedPlayers():
             print(f"[STANDINGS] {name} has got {self.chips.players[name]['stack']} chips remaining.")
+    
+    def SeatPlayers(self, players):
+        self.seats.TrackPlayers(players)
+        self.seats.SeatPlayers()
 
     def InitializeTable(self, humans, bots, starting_chips):
         # seat players
         players = humans + bots
         shuffle(players)
-        self.seats.SeatPlayers(players)
+        self.SeatPlayers(players)
         # track species
         self.action.AddHumans(humans)
         self.action.AddBots(bots)
