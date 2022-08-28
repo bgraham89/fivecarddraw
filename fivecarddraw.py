@@ -107,13 +107,13 @@ class Deck(object):
 
     Methods
     -------
-        Shuffle: 
+        Shuffle : 
             Shuffles order of remaining cards in deck.
-        CollectCards: 
+        CollectCards : 
             Set the amount of cards no longer in the deck to 0.
-        DepartedCards: 
+        DepartedCards : 
             Get a list of the cards no longer in the deck.
-        RemainingCards: 
+        RemainingCards : 
             Get a list of the cards remaining in the deck.
 
     """
@@ -212,45 +212,45 @@ class HandTracker(object):
 
     Methods
     -------
-        TrackPlayers:
+        TrackPlayers :
             Begin tracking players.
-        UntrackPlayers:
+        UntrackPlayers :
             Stop tracking players.
-        AssignCards:
+        AssignCards :
             Associate cards with a player.
-        UnassignCards:
+        UnassignCards :
             Stop associating cards with a player.
-        DealHand:
+        DealHand :
             Get top five cards of the deck.
-        DealPlayersIn:
+        DealPlayersIn :
             Deal cards to each player being tracked.
-        SwapCards:
+        SwapCards :
             Get a list of cards to replace some discarded cards.
-        SwapPlayersCards:
+        SwapPlayersCards :
             Replace the discarded cards of a tracked player.
-        AllowDiscards:
+        AllowDiscards :
             Decide if discarding chosen cards is allowed.
-        CollectCards:
+        CollectCards :
             Remove cards from tracked players and return them to the deck.
-        ShuffleDeck:
+        ShuffleDeck :
             Shuffles order of remaining cards in deck.
-        LoadData:
+        LoadData :
             Load the ratings for each possible hand in five card draw poker.
-        HasFlush:
+        HasFlush :
             Determines if a hand contains a flush.
-        HasUnique5:
+        HasUnique5 :
             Determines if a hand contains five unique valued cards.
-        TwosEncoding:
+        TwosEncoding :
              Convert hand to a sum of powers of two.
-        PrimesEncoding:
+        PrimesEncoding :
              Convert hand to a product of prime numbers.
-        EvaluateHand:
+        EvaluateHand :
             Get the rating of a hand.
-        EvaluatePlayersIn:
+        EvaluatePlayersIn :
             Store the rating of each tracked players hand.
-        TrackedPlayers:
+        TrackedPlayers :
             Get a list of players being tracked.
-        TrackedHand:
+        TrackedHand :
             Get a list of cards assigned to a player.
 
     """
@@ -318,7 +318,7 @@ class HandTracker(object):
         ----------
             name : the name of a player
             cards : cards to assign to the player
-        cfg
+
         Side effects
         ------------
             The hands attribute has some values updated.
@@ -678,42 +678,41 @@ class SeatTracker(object):
             player seating data
         button : dict
             button assignment data
-        l : int
+        L : int
             the maximum player capacity of the tracker
 
     Methods
     -------
-        OccupySeat(name, seat):
+        OccupySeat :
             Assign a player to a seat
-        EmptySeat(seat):
+        EmptySeat :
             Unassign a player from a seat
-        TrackPlayers(names):
+        TrackPlayers :
             Begin tracking players
-        UntrackPlayers(names):
+        UntrackPlayers :
             Stop tracking players
-        SeatPlayers(players)
+        SeatPlayers :
             Assign tracked players to seats
-        KickPlayers(players)
+        KickPlayers :
             Unassign tracked players from seats
-        MoveButton()
+        MoveButton :
             Move button to next player
-        TrackButton()
+        TrackButton :
             Update button data
-        TrackedPlayers()
+        TrackedPlayers :
             Get list of tracked players
-        AvailableSeats()
+        AvailableSeats :
             Get list of available seats
         
 
     """
-    def __init__(self, amount_seats):
+    def __init__(self, amount_seats : int):
         """
         Constructs all the necessary attributes for the seattracker object.
 
         Parameters
         ----------
-            amount_seats : int
-                the maximum player capacity of the game of five card draw
+            amount_seats : the maximum player capacity of the game of five card draw
         """
         # initialise seat tracking
         self.seats = ["" for _ in range(amount_seats)]
@@ -722,7 +721,7 @@ class SeatTracker(object):
         # initialise button tracking
         self.button = {"seat" : -1, "player" : ""}
         # store input parameters
-        self.l = amount_seats
+        self.L = amount_seats
 
     def __iter__(self):
         """Converts the seatracker object to an iterator providing each seat status up to the button seat."""
@@ -731,23 +730,21 @@ class SeatTracker(object):
 
     def __len__(self):
         """Provides the amount of seats being tracked by the tracker."""
-        return self.l
+        return self.L
 
-    def OccupySeat(self, name, seat):
+    def OccupySeat(self, name : str, seat : int):
         """
         Occupies a seat with a player.
 
         Parameters
         ----------
-            name : str
-                player's name
-            seat : int
-                index of seat to occupy
+            name : player's name
+            seat : index of seat to occupy
         
         Side effects
         ------------
-            seats : list[str]
-                The seats attribute has an item replaced.
+            The seats attribute has an item replaced.
+
         """
         # assert name is unique
         if name in self.seats:
@@ -761,19 +758,18 @@ class SeatTracker(object):
         # occupy seat
         self.seats[seat] = name
 
-    def EmptySeat(self, seat):
+    def EmptySeat(self, seat : int):
         """
         Empties a seat occupied by a player.
 
         Parameters
         ----------
-            seat : int
-                index of seat to empty
+            seat : index of seat to empty
         
         Side effects
         ------------
-            seats : list[str]
-                The seats attribute has an item replaced.
+            The seats attribute has an item replaced.
+
         """
         # assert seat at table
         if seat >= len(self) or seat < 0:
@@ -784,19 +780,18 @@ class SeatTracker(object):
         # empty seat
         self.seats[seat] = ""
         
-    def TrackPlayers(self, names):
+    def TrackPlayers(self, names : list[str]):
         """
         Inserts some names into the tracker so the tracker can begin storing data about them.
 
         Parameters
         ----------
-            names : list[str]
-                players to track
+            names : players to track
         
         Side effects
         ------------
-            players : dict
-                The players attribute gets additional keys.
+            The players attribute gets additional keys.
+
         """
         for name in names:
             # assert name is unique
@@ -805,19 +800,18 @@ class SeatTracker(object):
             # begin tracking
             self.players.update({name : {}})
 
-    def UntrackPlayers(self, names):
+    def UntrackPlayers(self, names : list[str]):
         """
         Removes some names from the player tracker.
 
         Parameters
         ----------
-            names : list[str]
-                players to stop tracking
+            names : players to stop tracking
         
         Side effects
         ------------
-            players : dict
-                The players attribute has some keys removed.
+            The players attribute has some keys removed.
+
         """
         if names == self.TrackedPlayers():
             # stop tracking all players
@@ -837,16 +831,15 @@ class SeatTracker(object):
 
         Side effects
         ------------
-            seats : list[str]
-                The seats attribute has items replaced.
-            players : dict
-                The players attribute has some values updated.
+            The seats attribute has items replaced. \n
+            The players attribute has some values updated.
+
         """
         # select seats
         seats = self.AvailableSeats()
         shuffle(seats)
-        # get players names
-        players = self.TrackedPlayers()
+        # get players names to be seated
+        players = [name for name in self.TrackedPlayers() if not self.players[name]]
         # assert enough seats
         if len(players) > len(seats):
             raise Exception(f"There is not enough available seats for {players}.")
@@ -858,21 +851,19 @@ class SeatTracker(object):
             # update player tracker
             self.players[name] = empty_seat
 
-    def KickPlayers(self, players):
+    def KickPlayers(self, players : list[str]):
         """
         Removes players from the game.
 
         Parameters
         ----------
-            players : list[str]
-                players to kick from seats
+            players : players to kick from seats
         
         Side effects
         ------------
-            seats : list[str]
-                The seats attribute has items replaced.
-            players : dict
-                The players attribute has some keys deleted.
+            The seats attribute has items replaced. \n
+            The players attribute has some keys deleted.
+
         """
         # assert players are being tracked
         tracked_players = self.TrackedPlayers()
@@ -892,8 +883,8 @@ class SeatTracker(object):
 
         Side effects
         ------------
-            button : dict
-                The button attribute has a value updated.
+            The button attribute has a value updated.
+
         """
         b_seat = self.button["seat"]
         self.button["player"] = self.seats[b_seat]
@@ -904,8 +895,8 @@ class SeatTracker(object):
 
         Side effects
         ------------
-            button : dict
-                The button attribute has both values updated.
+            The button attribute has both values updated.
+
         """
         # find player to give button to if possible
         while True:
@@ -920,23 +911,17 @@ class SeatTracker(object):
         # update button tracker
         self.TrackButton()
 
-    def TrackedPlayers(self):
+    def TrackedPlayers(self) -> list[str]:
         """
         Provides the names of players being tracked.
 
-        Return value
-        ------------
-            : dict_keys
         """
-        return self.players.keys()
+        return [*self.players]
 
-    def AvailableSeats(self):
+    def AvailableSeats(self) -> list[int]:
         """
         Provides the seats that are unoccupied.
 
-        Return value
-        ------------
-            : list[int]
         """
         return [i for i, occupant in enumerate(self.seats) if not occupant]
 
