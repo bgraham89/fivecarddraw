@@ -35,16 +35,15 @@ class Card(object):
     
     """
 
-    def __init__(self, value, suit):
+    def __init__(self, value : int, suit : int):
         """
         Constructs all the necessary attributes for the card object.
 
         Parameters
         ----------
-            value : int
-                card value
-            suit : int
-                card suit
+            value : card value
+            suit : card suit
+
         """
         # assert acceptable parameters 
         try:
@@ -108,14 +107,15 @@ class Deck(object):
 
     Methods
     -------
-        Shuffle():
+        Shuffle: 
             Shuffles order of remaining cards in deck.
-        CollectCards():
+        CollectCards: 
             Set the amount of cards no longer in the deck to 0.
-        DepartedCards():
+        DepartedCards: 
             Get a list of the cards no longer in the deck.
-        RemainingCards():
+        RemainingCards: 
             Get a list of the cards remaining in the deck.
+
     """
 
     def __init__(self):
@@ -159,8 +159,8 @@ class Deck(object):
         
         Side effects
         ------------
-            state : list[Card]
-                The state attribute is permutated.
+            The state attribute is permutated.
+
         """
         departed_cards = self.DepartedCards()
         remaining_cards = self.RemainingCards()
@@ -173,28 +173,22 @@ class Deck(object):
         
         Side effects
         ------------
-            t : int
-                The t attribute is set to 0.
+            The t attribute is set to 0.
+
         """
         self.t = 0
 
-    def DepartedCards(self):
+    def DepartedCards(self) -> list[Card]:
         """
         Get a list of the cards no longer in the deck.
 
-        Return value
-        ------------
-            : list[Card]
         """
         return self.state[:self.t]
 
-    def RemainingCards(self):
+    def RemainingCards(self) -> list[Card]:
         """
         Get a list of the cards remaining in the deck.
 
-        Return value
-        ------------
-            : list[Card]
         """
         return self.state[self.t:]
 
@@ -218,46 +212,47 @@ class HandTracker(object):
 
     Methods
     -------
-        TrackPlayers(names):
+        TrackPlayers:
             Begin tracking players.
-        UntrackPlayers(names):
+        UntrackPlayers:
             Stop tracking players.
-        AssignCards(name, cards):
+        AssignCards:
             Associate cards with a player.
-        UnassignCards(name, cards):
+        UnassignCards:
             Stop associating cards with a player.
-        DealHand():
+        DealHand:
             Get top five cards of the deck.
-        DealPlayersIn():
+        DealPlayersIn:
             Deal cards to each player being tracked.
-        SwapCards(discards):
+        SwapCards:
             Get a list of cards to replace some discarded cards.
-        SwapPlayersCards(name, discards):
+        SwapPlayersCards:
             Replace the discarded cards of a tracked player.
-        AllowDiscards(name, hand, discards):
+        AllowDiscards:
             Decide if discarding chosen cards is allowed.
-        CollectCards():
+        CollectCards:
             Remove cards from tracked players and return them to the deck.
-        ShuffleDeck():
+        ShuffleDeck:
             Shuffles order of remaining cards in deck.
-        LoadData():
+        LoadData:
             Load the ratings for each possible hand in five card draw poker.
-        HasFlush(cards):
+        HasFlush:
             Determines if a hand contains a flush.
-        HasUnique5(cards):
+        HasUnique5:
             Determines if a hand contains five unique valued cards.
-        TwosEncoding(cards):
+        TwosEncoding:
              Convert hand to a sum of powers of two.
-        PrimesEncoding(cards):
+        PrimesEncoding:
              Convert hand to a product of prime numbers.
-        EvaluateHand(hand):
+        EvaluateHand:
             Get the rating of a hand.
-        EvaluatePlayersIn():
+        EvaluatePlayersIn:
             Store the rating of each tracked players hand.
-        TrackedPlayers():
+        TrackedPlayers:
             Get a list of players being tracked.
-        TrackedHand(name):
+        TrackedHand:
             Get a list of cards assigned to a player.
+
     """
 
     def __init__(self):
@@ -269,19 +264,18 @@ class HandTracker(object):
         # load data containing ratings of all possible five card hands
         self.LoadData()
 
-    def TrackPlayers(self, names):
+    def TrackPlayers(self, names : list[str]):
         """
         Inserts some names into the tracker so the tracker can begin storing data about them.
         
         Parameters
         ----------
-            names : list[str]
-                the names of players
+            names : the names of players
         
         Side effects
         ------------
-            hands : dict
-                The hands attribute gets additional keys.
+            The hands attribute gets additional keys.
+
         """
         # assert player is not being tracked already
         for name in names:
@@ -290,19 +284,18 @@ class HandTracker(object):
         # begin tracking players
         self.hands.update({name : {"cards" : []} for name in names})
 
-    def UntrackPlayers(self, names):
+    def UntrackPlayers(self, names : list[str]):
         """
         Removes some names from the tracker.
 
         Parameters
         ----------
-            names : list[str]
-                the names of players
+            names : the names of players
         
         Side effects
         ------------
-            hands : dict
-                The hands attribute loses some keys.
+            The hands attribute loses some keys.
+
         """
         # check if all players can be untracked
         if names == self.TrackedPlayers():
@@ -317,21 +310,19 @@ class HandTracker(object):
                 except KeyError:
                     raise KeyError(f"{names[i]} is not being tracked.")
 
-    def AssignCards(self, name, cards):
+    def AssignCards(self, name : str, cards : list[Card]):
         """
         Allocates cards to a player.
 
         Parameters
         ----------
-            name : str
-                the name of a player
-            cards : list[Card]
-                cards to assign to the player
-        
+            name : the name of a player
+            cards : cards to assign to the player
+        cfg
         Side effects
         ------------
-            hands : dict
-                The hands attribute has some values updated.
+            The hands attribute has some values updated.
+
         """
         # assert player is being tracked
         try:
@@ -340,21 +331,19 @@ class HandTracker(object):
         except KeyError:
             raise KeyError(f"{name} is not being tracked.")
 
-    def UnassignCards(self, name, cards):
+    def UnassignCards(self, name : str, cards : list[Card]):
         """
         Unallocates cards from a player.
 
         Parameters
         ----------
-            name : str
-                the name of a player
-            cards : list[Card]
-                cards to unassign from the player
+            name : the name of a player
+            cards : cards to unassign from the player
         
         Side effects
         ------------
-            hands : dict
-                The hands attribute has some values updated.
+            The hands attribute has some values updated.
+
         """
         # assert player is holding all cards
         if set(cards).intersection(self.hands[name]["cards"]) != set(cards):
@@ -367,18 +356,14 @@ class HandTracker(object):
         except KeyError:
             raise KeyError(f"{name} is not being tracked.")
 
-    def DealHand(self):
+    def DealHand(self) -> list[Card]:
         """
         Provide five cards from the deck.
         
-        Return value
-        ------------
-            hand : list[Card]
-        
         Side effects
         ------------
-            deck.t : int
-                The t attribute is increased by five.
+            The DECK.t attribute is increased by five.
+
         """
         # assert enough cards are in the deck to deal
         if 5 > len(self.DECK):
@@ -394,8 +379,8 @@ class HandTracker(object):
         
         Side effects
         ------------
-            hands : dict
-                The hands attribute has some values updated.
+            The hands attribute has some values updated.
+
         """
         # determine if enough cards are in the deck to deal everyone hands
         players = self.TrackedPlayers()
@@ -407,23 +392,18 @@ class HandTracker(object):
             hand = self.DealHand()
             self.AssignCards(player, hand)
 
-    def SwapCards(self, discards):
+    def SwapCards(self, discards : list[Card]) -> list[Card]:
         """
         Provides cards to replace some discarded cards.
 
         Parameters
         ----------
-            discards : list[Card]
-                cards to swap
-        
-        Return value
-        ------------
-            new_cards : list[Card]
+            discards : cards to swap
         
         Side effects
         ------------
-            deck.t : int
-                The t attribute is increased by the amount of cards being discarded.
+            The DECK attribute has the t attribute increased by the amount of cards being discarded.
+
         """
         # assert enough cards in deck
         if len(self.DECK) < len(discards):
@@ -433,23 +413,20 @@ class HandTracker(object):
         new_cards = [next(self.DECK) for _ in range(len(discards))]
         return new_cards
 
-    def SwapPlayersCards(self, name, discards):
+    def SwapPlayersCards(self, name : str, discards : list[Card]):
         """
         Provides cards to replace some cards discarded by a tracked player.
 
         Parameters
         ----------
-            name : str
-                name of tracked player
-            discards : list[Card]
-                cards to swap
+            name : name of tracked player
+            discards : cards to swap
         
         Side effects
         ------------
-            deck.t : int
-                The t attribute is increased by the amount of cards being discarded.
-            hands : dict
-                The hands attribute has some values updated.
+            The DECK attribute has the t attribute increased by the amount of cards being discarded.\n
+            The hands attribute has some values updated.
+
         """
         # assert enough cards in deck
         if len(self.DECK) < len(discards):
@@ -462,20 +439,15 @@ class HandTracker(object):
         new_cards = [next(self.DECK) for _ in range(len(discards))]
         self.AssignCards(name, new_cards)
 
-    def AllowDiscards(self, hand, discards):
+    def AllowDiscards(self, hand : list[Card], discards : list[Card]) -> bool:
         """
         Decides if discarding a selection of cards from a hand is acceptible in five card draw.
 
         Parameters
         ----------
-            hand : list[Card]
-                the hand to discard from
-            discards : list[Card]
-                the selection of cards to discard
+            hand : the hand to discard from
+            discards : the selection of cards to discard
         
-        Return value
-        ------------
-            : bool
         """
         # assert 5 card hands
         if len(hand) != 5 or len(discards) > 5:
@@ -493,14 +465,13 @@ class HandTracker(object):
     
     def CollectCards(self):
         """
-        Puts all cards back in the deck .
+        Puts all cards back in the deck.
         
         Side effects
         ------------
-            deck.t : int
-                The t attribute is set to 0.
-            hands : dict
-                The hands attribute is cleared.
+            The deck attribute has the t attribute set to 0. \n
+            The hands attribute is cleared.
+
         """
         self.DECK.CollectCards()
         players = self.TrackedPlayers()
@@ -512,8 +483,8 @@ class HandTracker(object):
         
         Side effects
         ------------
-            deck.state : list[Card]
-                The state attribute is permutated.
+            The deck attribute has the state attribute permutated.
+
         """
         self.DECK.Shuffle()
 
@@ -523,12 +494,10 @@ class HandTracker(object):
         
         Side effects
         ------------
-            FLUSH_RANKS : dict
-                The FLUSH_RANKS attribute is created.
-            UNIQUE5_RANKS : dict
-                The UNIQUE5_RANKS attribute is created.
-            DUPES_RANKS : dict
-                The DUPES_RANKS attribute is created.
+            The FLUSH_RANKS attribute is created. \n
+            The UNIQUE5_RANKS attribute is created. \n
+            The DUPES_RANKS attribute is created.
+
         """
         # create ciphers for reading and encoding hands for fast hand ranking
         PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41)
@@ -548,109 +517,104 @@ class HandTracker(object):
 
         # store ratings of all hands with flushes
         self.FLUSH_RANKS = {}
+        # read data
         with open("data/flushes.txt", "r") as file:
             for line in file:
+                # locate and encode hand as sum of powers of two
                 hand = reduce(lambda x, y : x+y, map(lambda x : DV[line[int(x)]], "45678"))
+                # store hand ratings by integer key 
                 self.FLUSH_RANKS[hand] = []
+                # store numerical rating
                 self.FLUSH_RANKS[hand].append(int(str(line)[11:]))
+                # store categorical rating
                 self.FLUSH_RANKS[hand].append(CLASSES[str(line[:2])])
 
         # store ratings of all non-flush hands with 5 unique card values
         self.UNIQUE5_RANKS = {}
+        # read data
         with open("data/uniquefive.txt", "r") as file:
             for line in file:
+                # locate and encode hand as sum of powers of two
                 hand = reduce(lambda x, y : x+y, map(lambda x : DV[line[int(x)]], "45678"))
+                # store hand ratings by integer key 
                 self.UNIQUE5_RANKS[hand] = []
+                # store numerical rating
                 self.UNIQUE5_RANKS[hand].append(int(str(line)[11:]))
+                # store categorical rating
                 self.UNIQUE5_RANKS[hand].append(CLASSES[str(line[:2])])
 
         # store ratings of all hands with duplicate card values
         self.DUPE_RANKS = {}
+        # read data
         with open("data/dupes.txt", "r") as file:
             for line in file:
+                # locate and encode hand as product of primes
                 hand = reduce(lambda x, y : x*y, map(lambda x : DP[line[int(x)]], "45678"))
+                # store hand ratings by integer key 
                 self.DUPE_RANKS[hand] = []
+                # store numerical rating
                 self.DUPE_RANKS[hand].append(int(str(line)[11:]))
+                # store categorical rating
                 self.DUPE_RANKS[hand].append(CLASSES[str(line[:2])])
 
-    def HasFlush(self, cards):
+    def HasFlush(self, cards : list[Card]) -> bool:
         """
         Check if a hand contains a flush.
 
         Parameters
         ----------
-            cards : list[Card]
-                hand to check
+            cards : hand to check
         
-        Return value
-        ------------
-            : bool
         """
         # look at suit bits of each card
         suit_mask = 15 << 12
         has_flush = reduce(lambda x, y : x&y, map(lambda x : int(x), cards)) & suit_mask
         return bool(has_flush)
 
-    def HasUnique5(self, cards):
+    def HasUnique5(self, cards : list[Card]) -> bool:
         """
         Check if a hand contains five unique cards.
 
         Parameters
         ----------
-            cards : list[Card]
-                hand to check
+            cards : hand to check
         
-        Return value
-        ------------
-            has_unique5 : bool
         """
         # look at value bits of each card
         values = reduce(lambda x, y : x|y, map(lambda x : int(x), cards)) >> 16
         has_unique5 = bin(values).count("1") == 5
         return has_unique5
 
-    def TwosEncoding(self, cards):
+    def TwosEncoding(self, cards : list[Card]) -> int:
         """
         Convert hand to a sum of powers of two.
 
         Parameters
         ----------
-            cards : list[Card]
-                hand to convert
+            cards : hand to convert
         
-        Return value
-        ------------
-            : int
         """
         return reduce(lambda x, y : x|y, map(lambda x : int(x), cards)) >> 16
 
-    def PrimesEncoding(self, cards):
+    def PrimesEncoding(self, cards : list[Card]) -> int:
         """
         Convert hand to a product of primes.
 
         Parameters
         ----------
-            cards : list[Card]
-                hand to convert
+            cards : hand to convert
         
-        Return value
-        ------------
-            : int
         """
         return reduce(lambda x, y : x*y, map(lambda x : int(x) & 255, cards))
 
-    def EvaluateHand(self, hand):
+    def EvaluateHand(self, hand : list[Card]) -> tuple[int, str]:
         """
-        Evaluates a hand.
+        Evaluates a hand both numerically and categorically.
 
         Parameters
         ----------
-            hand : list[Card]
-                hand to evaluate
+            hand : hand to evaluate
         
-        Return value
-        ------------
-            : tuple[int, str]
         """
         # assert 5 card hands
         if len(hand) != 5 :
@@ -673,8 +637,8 @@ class HandTracker(object):
         
         Side effects
         ------------
-            hands : dict
-                The hands attribute has some values updated.
+            hands : The hands attribute has some values updated.
+
         """
         # evaluate hands of players being tracked and store the info
         for player in self.TrackedPlayers():
@@ -683,23 +647,17 @@ class HandTracker(object):
             self.hands[player]["rank_n"] = rank_n
             self.hands[player]["rank_c"] = rank_c
 
-    def TrackedPlayers(self):
+    def TrackedPlayers(self) -> list:
         """
         Provides the names of players being tracked.
         
-        Return value
-        ------------
-            : dict_keys[str]
         """
-        return self.hands.keys()
+        return [*self.hands]
 
-    def TrackedHand(self, name):
+    def TrackedHand(self, name : str) -> list[Card]:
         """
         Provides the hand of a player being tracked.
         
-        Return value
-        ------------
-            : list[Card]
         """
         # assert player is being tracked and return hand
         try:
