@@ -1,5 +1,4 @@
 import unittest
-from random import randint
 from fivecarddraw import Card, Deck
 
 class DeckTest(unittest.TestCase):
@@ -82,6 +81,7 @@ class DeckTest(unittest.TestCase):
             self.assertEqual(set(precollect), set(postcollect))
             # check collect restarts deck iterator
             self.assertEqual(len(self.deck), 52)
+
 
 if __name__ == "__main__":
     unittest.main()

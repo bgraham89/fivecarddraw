@@ -706,13 +706,14 @@ class SeatTracker(object):
         
 
     """
-    def __init__(self, amount_seats : int):
+    def __init__(self, amount_seats : int = 5):
         """
         Constructs all the necessary attributes for the seattracker object.
 
         Parameters
         ----------
             amount_seats : the maximum player capacity of the game of five card draw
+            
         """
         # initialise seat tracking
         self.seats = ["" for _ in range(amount_seats)]
@@ -753,7 +754,7 @@ class SeatTracker(object):
         if seat >= len(self) or seat < 0:
             raise IndexError(f"No seat with index {seat}.") 
         # assert seat is empty
-        if self.seats:
+        if self.seats[seat]:
             raise Exception(f"The seat is already occupied by {self.seats[seat]}.")
         # occupy seat
         self.seats[seat] = name
@@ -775,7 +776,7 @@ class SeatTracker(object):
         if seat >= len(self) or seat < 0:
             raise IndexError(f"No seat with index {seat}.")
         # assert seat is occupied
-        if self.seats:
+        if not self.seats[seat]:
             raise Exception(f"The seat {seat} wasn't occupied.")
         # empty seat
         self.seats[seat] = ""
@@ -871,7 +872,7 @@ class SeatTracker(object):
             if name not in tracked_players:
                 raise KeyError(f"{name} is not being tracked.")
             # update seat tracker 
-            seat = self.players[name]["seat"]
+            seat = self.players[name]
             self.EmptySeat(seat)
         # update player tracker
         self.UntrackPlayers(players)
@@ -924,6 +925,13 @@ class SeatTracker(object):
 
         """
         return [i for i, occupant in enumerate(self.seats) if not occupant]
+
+    def OccupiedSeats(self) -> list[int]:
+        """
+        Provides the seats that are occupied.
+
+        """
+        return [i for i, occupant in enumerate(self.seats) if occupant]
 
 
 class ChipTracker(object):

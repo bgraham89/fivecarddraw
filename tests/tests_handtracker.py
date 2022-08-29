@@ -1,6 +1,4 @@
-import enum
 import unittest
-from random import randint
 from fivecarddraw import Card, HandTracker
 
 class HandTrackerTest(unittest.TestCase):
