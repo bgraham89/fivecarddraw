@@ -725,9 +725,9 @@ class SeatTracker(object):
         self.L = amount_seats
 
     def __iter__(self):
-        """Converts the seatracker object to an iterator providing each seat status up to the button seat."""
+        """Converts the seatracker object to an iterator providing players in dealing order."""
         b_seat = self.button["seat"]
-        return self.seats[b_seat+1:] + self.seats[:b_seat+1]
+        return (player for player in self.seats[b_seat+1:] + self.seats[:b_seat+1] if player)
 
     def __len__(self):
         """Provides the amount of seats being tracked by the tracker."""
