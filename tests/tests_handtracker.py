@@ -60,8 +60,8 @@ class HandTrackerTest(unittest.TestCase):
             self.tracker.AssignCards(player, [card])
             assigned_cards += [card]
             # check single card assignment
-            self.assertIn(card, self.tracker.TrackedHand(player))
-            self.assertEqual(len(self.tracker.TrackedHand(player)), len(assigned_cards))
+            self.assertIn(card, self.tracker.Hand(player))
+            self.assertEqual(len(self.tracker.Hand(player)), len(assigned_cards))
 
         # implicit hand collection
         num_cards = len(assigned_cards)
@@ -69,10 +69,10 @@ class HandTrackerTest(unittest.TestCase):
             self.tracker.UnassignCards(player, [card])
             num_cards -= 1
             # check single card unassignment
-            self.assertNotIn(card, self.tracker.TrackedHand(player))
-            self.assertEqual(len(self.tracker.TrackedHand(player)), num_cards)
+            self.assertNotIn(card, self.tracker.Hand(player))
+            self.assertEqual(len(self.tracker.Hand(player)), num_cards)
         # check all cards unassigned
-        self.assertEqual(len(self.tracker.TrackedHand(player)), 0)
+        self.assertEqual(len(self.tracker.Hand(player)), 0)
 
         # check cant unassign card not assigned to player
         self.assertRaises(Exception, self.tracker.UnassignCards, name="1", cards=[card])
@@ -108,7 +108,7 @@ class HandTrackerTest(unittest.TestCase):
             self.tracker.TrackPlayers(names)
             self.tracker.DealPlayersIn()
             for name in self.tracker.TrackedPlayers():
-                hand = self.tracker.hands[name]["cards"]
+                hand = self.tracker.players[name]["cards"]
                 # check hand size
                 self.assertEqual(len(hand), 5)
                 for card in hand:
@@ -187,15 +187,15 @@ class HandTrackerTest(unittest.TestCase):
         for name in names:
             # allowed cardinality of discards
             for j in range(4):
-                discards = self.tracker.TrackedHand(name)[:j+1]
+                discards = self.tracker.Hand(name)[:j+1]
                 self.tracker.SwapPlayersCards(name, discards)
                 # check correct amount of cards is returned
-                self.assertEqual(len(self.tracker.TrackedHand(name)), 5)
+                self.assertEqual(len(self.tracker.Hand(name)), 5)
                 # check each card is unique
-                self.assertEqual(len(set(self.tracker.TrackedHand(name))), 5)
+                self.assertEqual(len(set(self.tracker.Hand(name))), 5)
                 # check each card not in original hand
-                self.assertFalse(set(discards).intersection(set(self.tracker.TrackedHand(name))))
-                for card in self.tracker.TrackedHand(name):
+                self.assertFalse(set(discards).intersection(set(self.tracker.Hand(name))))
+                for card in self.tracker.Hand(name):
                     # check each card not in deck anymore
                     self.assertNotIn(card, self.tracker.DECK.RemainingCards())
                     # check each card categorised as departed
@@ -342,9 +342,9 @@ class HandTrackerTest(unittest.TestCase):
 
         for name in self.tracker.TrackedPlayers():
             # check hand is numerically ranked correctly
-            self.assertEqual(self.tracker.hands[name]["rank_n"], numbers[int(i)])
+            self.assertEqual(self.tracker.players[name]["rank_n"], numbers[int(i)])
             # check hand is categorised correctly
-            self.assertEqual(self.tracker.hands[name]["rank_c"], categories[int(i)])
+            self.assertEqual(self.tracker.players[name]["rank_c"], categories[int(i)])
 
 
 if __name__ == "__main__":

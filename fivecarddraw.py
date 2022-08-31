@@ -260,7 +260,7 @@ class HandTracker(object):
         # create a deck
         self.DECK = Deck()
         # create a state for player hand data
-        self.hands = {}
+        self.players = {}
         # load data containing ratings of all possible five card hands
         self.LoadData()
 
@@ -274,15 +274,15 @@ class HandTracker(object):
         
         Side effects
         ------------
-            The hands attribute gets additional keys.
+            The players attribute gets additional keys.
 
         """
         # assert player is not being tracked already
         for name in names:
-            if name in self.hands:
+            if name in self.players:
                 raise Exception(f"{name} is already being tracked.")
         # begin tracking players
-        self.hands.update({name : {"cards" : []} for name in names})
+        self.players.update({name : {"cards" : []} for name in names})
 
     def UntrackPlayers(self, names : list[str]):
         """
@@ -294,21 +294,16 @@ class HandTracker(object):
         
         Side effects
         ------------
-            The hands attribute loses some keys.
+            The players attribute loses some keys.
 
         """
-        # check if all players can be untracked
-        if names == self.TrackedPlayers():
-            # stop tracking all players
-            self.hands = {} 
-        else:
-            for i in range(len(names)):
-                # assert each player was being tracked
-                try:
-                    # stop tracking player
-                    del self.hands[names[i]]
-                except KeyError:
-                    raise KeyError(f"{names[i]} is not being tracked.")
+        for name in names:
+            # assert each player was being tracked
+            try:
+                # stop tracking player
+                del self.players[name]
+            except KeyError:
+                raise KeyError(f"{name} is not being tracked.")
 
     def AssignCards(self, name : str, cards : list[Card]):
         """
@@ -321,13 +316,13 @@ class HandTracker(object):
 
         Side effects
         ------------
-            The hands attribute has some values updated.
+            The players attribute has some values updated.
 
         """
         # assert player is being tracked
         try:
             # allocate cards to player
-            self.hands[name]["cards"].extend(cards)
+            self.players[name]["cards"].extend(cards)
         except KeyError:
             raise KeyError(f"{name} is not being tracked.")
 
@@ -342,17 +337,17 @@ class HandTracker(object):
         
         Side effects
         ------------
-            The hands attribute has some values updated.
+            The players attribute has some values updated.
 
         """
         # assert player is holding all cards
-        if set(cards).intersection(self.hands[name]["cards"]) != set(cards):
+        if set(cards).intersection(self.Hand(name)) != set(cards):
             raise Exception(f"{name} is not holding some of {cards}.")
         
         # assert player is being tracked
         try:
             # unallocate cards from player
-            self.hands[name]["cards"] = [card for card in self.hands[name]["cards"] if card not in cards]
+            self.players[name]["cards"] = [card for card in self.Hand(name) if card not in cards]
         except KeyError:
             raise KeyError(f"{name} is not being tracked.")
 
@@ -379,16 +374,15 @@ class HandTracker(object):
         
         Side effects
         ------------
-            The hands attribute has some values updated.
+            The players attribute has some values updated.
 
         """
         # determine if enough cards are in the deck to deal everyone hands
-        players = self.TrackedPlayers()
-        if len(players) * 5 > len(self.DECK):
+        if len(self.players) * 5 > len(self.DECK):
             Exception("There are not enough cards remaining to deal all players hands.")
 
         # deal hands to tracked players
-        for player in players:
+        for player in self.players:
             hand = self.DealHand()
             self.AssignCards(player, hand)
 
@@ -425,7 +419,7 @@ class HandTracker(object):
         Side effects
         ------------
             The DECK attribute has the t attribute increased by the amount of cards being discarded.\n
-            The hands attribute has some values updated.
+            The players attribute has some values updated.
 
         """
         # assert enough cards in deck
@@ -470,7 +464,7 @@ class HandTracker(object):
         Side effects
         ------------
             The deck attribute has the t attribute set to 0. \n
-            The hands attribute is cleared.
+            The players attribute is cleared.
 
         """
         self.DECK.CollectCards()
@@ -637,31 +631,31 @@ class HandTracker(object):
         
         Side effects
         ------------
-            hands : The hands attribute has some values updated.
+            hands : The players attribute has some values updated.
 
         """
         # evaluate hands of players being tracked and store the info
-        for player in self.TrackedPlayers():
-            hand = self.hands[player]["cards"]
+        for player in self.players:
+            hand = self.Hand(player)
             rank_n, rank_c = self.EvaluateHand(hand)
-            self.hands[player]["rank_n"] = rank_n
-            self.hands[player]["rank_c"] = rank_c
+            self.players[player]["rank_n"] = rank_n
+            self.players[player]["rank_c"] = rank_c
 
     def TrackedPlayers(self) -> list:
         """
         Provides the names of players being tracked.
         
         """
-        return [*self.hands]
+        return [*self.players]
 
-    def TrackedHand(self, name : str) -> list[Card]:
+    def Hand(self, name : str) -> list[Card]:
         """
         Provides the hand of a player being tracked.
         
         """
         # assert player is being tracked and return hand
         try:
-            return self.hands[name]["cards"]
+            return self.players[name]["cards"]
         except KeyError:
             raise KeyError(f"{name} is not being tracked.")
 
@@ -814,17 +808,13 @@ class SeatTracker(object):
             The players attribute has some keys removed.
 
         """
-        if names == self.TrackedPlayers():
-            # stop tracking all players
-            self.players = {} 
-        else:
-            # stop tracking some players
-            for i in range(len(names)):
-                try:
-                    del self.players[names[i]]
-                except KeyError:
-                    # assert name was being tracked
-                    raise KeyError(f"{names[i]} is not being tracked.")
+        for name in names:
+            # assert each player was being tracked
+            try:
+                # stop tracking player
+                del self.players[name]
+            except KeyError:
+                raise KeyError(f"{names} is not being tracked.")
 
     def SeatPlayers(self):
         """
@@ -840,7 +830,7 @@ class SeatTracker(object):
         seats = self.AvailableSeats()
         shuffle(seats)
         # get players names to be seated
-        players = [name for name in self.TrackedPlayers() if not self.players[name]]
+        players = [name for name in self.players if not self.players[name]]
         # assert enough seats
         if len(players) > len(seats):
             raise Exception(f"There is not enough available seats for {players}.")
@@ -867,9 +857,8 @@ class SeatTracker(object):
 
         """
         # assert players are being tracked
-        tracked_players = self.TrackedPlayers()
         for name in players:
-            if name not in tracked_players:
+            if name not in self.players:
                 raise KeyError(f"{name} is not being tracked.")
             # update seat tracker 
             seat = self.players[name]
@@ -877,7 +866,6 @@ class SeatTracker(object):
         # update player tracker
         self.UntrackPlayers(players)
         
-
     def TrackButton(self):
         """
         Stores information about the button seat.
@@ -907,7 +895,7 @@ class SeatTracker(object):
             seat %= len(self)
             self.button["seat"] = seat
             # stop if player is at seat or there are no seated players
-            if self.seats[seat] or not self.TrackedPlayers():
+            if self.seats[seat] or not self.players:
                 break
         # update button tracker
         self.TrackButton()
@@ -945,130 +933,135 @@ class ChipTracker(object):
         self.players = {name : {"stack" : 0, "contribution" : 0 } for name in names}
 
     def UntrackPlayers(self, names):
-        # stop tracking players
-        if names == self.TrackedPlayers():
-            self.players = {} 
-        else:
-            for i in range(len(names)):
-                try:
-                    del self.players[names[i]]
-                except KeyError:
-                    raise KeyError(f"{names[i]} is not being tracked.")
+        for name in names:
+            # assert each player was being tracked
+            try:
+                # stop tracking player
+                del self.players[name]
+            except KeyError:
+                raise KeyError(f"{name} is not being tracked.")
 
-    def AddChipsPlayer(self, name, amount):
-        # determine players current stack or set it to zero.
-        self.players.setdefault(name, {"stack" : 0, "contribution" : 0})
+    def Reward(self, name, amount):
+        # assert player is being tracked
+        if name not in self.players:
+            raise KeyError(f"{name} is not being tracked.")
         # add chips to players stack
         self.players[name]["stack"] += amount
 
-    def WithdrawChipsPlayer(self, name):
-        # stop tracking player
-        del self.players[name]
-
-    def BetChipsPlayer(self, name, amount):
-        # update players stack and contribution values
+    def Spend(self, name, amount):
+        # assert player has enough chips
+        if not self.HasEnough(name, amount):
+            raise ValueError(f"{name} doesn't have enough chips to pay {amount} chips.")
+        # remove chips from players stack
         self.players[name]["stack"] -= amount
+
+    def Bet(self, name, amount):
+        # remove chips from player
+        self.Spend(name, amount)
+        # add chips to pot
         self.players[name]["contribution"] += amount
 
-    def RewardChipsPlayer(self, name, amount):
-        # add chips to players stack
-        self.players[name]["stack"] += amount
-
-    def ApproveBet(self, name, amount):
-        # decide legality of accepting bet
+    def HasEnough(self, name, amount):
+        # check if player has enough chips
         return True if amount <= self.players[name]["stack"] else False
 
-    def AmountToCall(self, name):
+    def CallAmount(self, name):
         # calculate how many chips a player needs to contribute, to minimum call
-        contributions = [self.players[name]["contribution"] for name in self.players.keys()]
-        return max(contributions) - self.players[name]["contribution"]
+        contributions = [self.Contribution(player) for player in self.players]
+        return max(contributions) - self.Contribution(name)
 
-    def BetStatus(self, name, amount):
-        # analyse bet relative to circumstances for classifying the action taken
-        min_to_call = self.AmountToCall(name)
-        has_raised = True if amount > min_to_call else False
-        has_allin = True if amount == self.players[name]["stack"] else False
+    def BetDetails(self, name, amount):
+        # check if bet is players full stack
+        has_allin = True if amount == self.Stack(name) else False
+        # check if bet is atleast the min call amount
+        min_to_call = self.CallAmount(name)
         has_mincalled = True if amount >= min_to_call else False
-        has_folded = True if min_to_call and not amount else False
+        if has_mincalled:
+            # check if bet is more than the min call amount
+            has_raised = True if amount > min_to_call else False
+        else:
+            # check if player didn't bet anything
+            has_folded = True if not amount else False
         return {"has_raised" : has_raised, "has_allin" : has_allin, "has_mincalled" : has_mincalled, "has_folded" : has_folded}
 
-    def CalculateRewards(self, player_info):
-        # initialise rewards tracker
+    def GatherContributions(self, cap):
+        contributions = 0
+        # check contribution of each player
+        for contributor in self.players:
+            # take capped contributions
+            if not self.Contribution(contributor):
+                continue
+            if self.Contribution(contributor) > cap:
+                contributions += cap
+                self.players[contributor]["contribution"] -= cap
+            else:
+                contributions += self.Contribution(contributor)
+                self.players[contributor]["contribution"] = 0
+        return contributions
+
+    def SplitContributions(self, names):
+        # track rewards
         rewards = {}
-        # determine players who have not folded and sort them by hand rank and contribution; ascending 
-        candidates = [name for name in player_info.keys() if not player_info[name]["status"]["has_folded"]]
-        candidates.sort(key = lambda x : (player_info[x]["hand"]["rank_n"], player_info[x]["chips"]["contribution"]))
-        # group players by hand rank
-        candidate_splits = groupby(candidates, key = lambda x : player_info[x]["hand"]["rank_n"])
-        # determine rewards per group
-        for rank_n, group in candidate_splits:
-            candidates = list(group)
-            reward_to_split = 0
-            # determine rewards per player in the group, starting from the player who contributed least to the pot
-            for i, candidate in enumerate(candidates):
-                # determine pot contributions that the player will get a share of
-                contributors = [name for name in player_info.keys()]
-                contributors.sort(key = lambda x : player_info[x]["chips"]["contribution"], reverse=True)
-                for contributor in contributors:
-                    if not player_info[contributor]["chips"]["contribution"]:
-                        break
-                    if contributor == candidate:
-                        continue
-                    if player_info[contributor]["chips"]["contribution"] > player_info[candidate]["chips"]["contribution"]:
-                        reward_to_split += player_info[candidate]["chips"]["contribution"]
-                        player_info[contributor]["chips"]["contribution"] -= player_info[candidate]["chips"]["contribution"]
-                    else:
-                        reward_to_split += player_info[contributor]["chips"]["contribution"]
-                        player_info[contributor]["chips"]["contribution"] = 0
-                # include players own chips
-                reward_to_split += player_info[candidate]["chips"]["contribution"]
-                player_info[candidate]["chips"]["contribution"] = 0
-                # determine fraction of group rewards player will get
-                candidate_reward = reward_to_split // (len(candidates) - i)
-                rewards[candidate] = candidate_reward
-                # remove player reward from groups reward 
-                reward_to_split -= candidate_reward
-        # return rewards tracker
+        # calculate rewards per player based on contributions
+        contributions = 0
+        # accomodate side pots
+        names.sort(key = lambda x : self.Contribution(x))
+        for i, name in names:
+            # check if total player contribution has been accounted for
+            contribution = self.Contribution(name)
+            if contribution:
+                # account for contribution
+                contributions += self.GatherContributions(contribution)
+            # split contributions
+            split = contributions // (len(names) - i)
+            # reward contributions
+            self.Reward(name, split)
+            contributions -= split
+            # track rewards
+            rewards[name] = split
         return rewards
 
-    def ClearPot(self):
-        # reset player contributions to zero
-        for name in self.players.keys():
-            self.players[name]["contribution"] = 0
-
-    def PotTotal(self):
-        # determine and return total amount of chips in pot
-        return sum([self.players[name]["contribution"] for name in self.players.keys()])
-
-    def ChipStacks(self):
-        # return player stacks
-        return {name : self.players[name]["stack"] for name in self.players}
-
-    def SetAnte(self, amount):
+    def UpdateAnte(self, amount):
         # update ante amount
         self.gameinfo["ante"] = amount
 
-    def GetAnte(self):
-        # return ante amount 
-        return self.gameinfo["ante"]
-
-    def CheckAnte(self, player):
-        # analyse ante relative to player stack for classifying action
-        status = {"bet_all" : False, "bet_something" : False, "bet_nothing" : False}
-        if self.GetAnte() == self.players[player]["stack"]:
+    def PayAnte(self, player):
+        ante = self.Ante()
+        stack = self.Stack(player)
+        # track payment details
+        status = {"bet_all" : False, "bet_something" : False}
+        # pay
+        if ante >= stack:
             status["bet_all"] = True
-        elif self.GetAnte() < self.players[player]["stack"]:
-            status["bet_something"] = True
+            self.Bet(player, stack)
         else:
-            status["bet_nothing"] = True
+            status["bet_something"] = True
+            self.Bet(player, ante)
         return status
 
     def TrackedPlayers(self):
         # return all tracked players
-        return self.players.keys()
+        return [*self.players]
 
     def SkintPlayers(self):
-        return [player for player in self.TrackedPlayers() if self.ChipStacks(player) < self.GetAnte()]
+        # return players without chips
+        return [player for player in self.players if not self.Stack(player)]
+
+    def Stack(self, name):
+        # return player stack
+        return self.players[name]["stack"]
+
+    def Contribution(self, name):
+        return self.players[name]["contribution"]
+
+    def Ante(self):
+        # return ante amount 
+        return self.gameinfo["ante"]
+
+    def PotAmount(self):
+        # determine and return total amount of chips in pot
+        return sum([self.Contribution(name) for name in self.players])
+
             
 
 class ActionTracker(object):
@@ -1078,15 +1071,13 @@ class ActionTracker(object):
         self.beings = {"humans" : [], "bots" : []}
 
     def UntrackPlayers(self, names):
-        # stop tracking players
-        if names == self.TrackedPlayers():
-            self.players = {} 
-        else:
-            for i in range(len(names)):
-                try:
-                    del self.players[names[i]]
-                except KeyError:
-                    raise KeyError(f"{names[i]} is not being tracked.")
+        for name in names:
+            # assert each player was being tracked
+            try:
+                # stop tracking player
+                del self.players[name]
+            except KeyError:
+                raise KeyError(f"{names} is not being tracked.")
 
     def NewRound(self, names):
         # set players statuses to false
@@ -1117,7 +1108,7 @@ class ActionTracker(object):
     def KickPlayers(self, names):
         for name in names:
             # assert player is seated
-            if name not in self.TrackedPlayers():
+            if name not in self.players:
                 raise KeyError(f"{name} wasn't being tracked.")
             # kick bot
             self.KickBot(name)
@@ -1173,7 +1164,7 @@ class ActionTracker(object):
         return [name for name in action_order if name and not self.players[name]["has_folded"] and not self.players[name]["has_allin"]]
 
     def TrackedPlayers(self):
-        return self.players.keys()
+        return [*self.players]
 
 
 class Dealer(object):
@@ -1196,7 +1187,7 @@ class Dealer(object):
         
     def DealHands(self):
         # determine players in the round and begin tracking
-        names = self.seats.TrackedPlayers()
+        names = self.seats.players
         self.cards.TrackPlayers(names)
         # deal and evaluate hands and log
         self.cards.DealPlayersIn()
@@ -1206,7 +1197,7 @@ class Dealer(object):
         self.action.NewRound(names)
     
     def EditHand(self, name, discards):
-        hand = self.cards[name]["cards"]
+        hand = self.cards.Hand(name)
         # act on discard request and return success or not
         if self.cards.AllowDiscards(hand, discards):
             self.cards.SwapPlayersCards(name, discards)
@@ -1226,25 +1217,22 @@ class Dealer(object):
         
     def TakeAnte(self):
         # take ante from players
-        for name in self.seats:
-            if not name:
-                continue
-            amount = self.chips.GetAnte()
-            status = self.chips.CheckAnte(name)
+        for name in list(self.seats):
+            status = self.chips.PayAnte(name)
+            amount = self.chips.Contribution(name)
             # log all-in or not
             if status["bet_all"]:
                 print(f"[ANTE] The ante forced {name} to go all-in with {amount} chips!")
                 self.action.SetAllIn(name)
             elif status["bet_something"]:
                 print(f"[ANTE] {name} paid {amount} chips for the ante.")
-            self.chips.BetChipsPlayer(name, amount)
     
     def TakeBet(self, name, amount):
         # act on bet request and return success or not
         # check player has enough chips
-        if self.chips.ApproveBet(name, amount):
+        if self.chips.HasEnough(name, amount):
             # determine action based on bet amount
-            status = self.chips.BetStatus(name, amount)
+            status = self.chips.BetDetails(name, amount)
             # assert action is legal
             if not any([status["has_mincalled"], status["has_allin"], status["has_folded"]]):
                 return False
@@ -1252,12 +1240,12 @@ class Dealer(object):
             if status["has_raised"] and status["has_allin"]:
                 self.action.ExtendRound()
                 self.action.SetAllIn(name)
-                surplass = amount - self.chips.AmountToCall(name) 
+                surplass = amount - self.chips.CallAmount(name) 
                 print(f"[ACTION] {name} has raised by {surplass} and gone all-in!")
             elif status["has_raised"] and status["has_mincalled"]:
                 self.action.ExtendRound()
                 self.action.SetMinCalled(name)
-                surplass = amount - self.chips.AmountToCall(name) 
+                surplass = amount - self.chips.CallAmount(name) 
                 print(f"[ACTION] {name} has raised by {surplass}.")
             elif status["has_allin"] and status["has_mincalled"]:
                 self.action.SetAllIn(name)
@@ -1274,7 +1262,7 @@ class Dealer(object):
             elif status["has_allin"]:
                 self.action.SetAllIn(name)
                 print(f"[ACTION] {name} couldn't call but has gone all-in.")
-            self.chips.BetChipsPlayer(name, amount)
+            self.chips.Bet(name, amount)
             return True
         else:
             return False
@@ -1283,31 +1271,31 @@ class Dealer(object):
         # initialise info tracker and return it
         info = {}
         # add info about each player
-        for name in self.seats.TrackedPlayers():
+        for name in self.seats.players:
             info[name] = {}
             info[name]["seat"] = self.seats.players[name]
             info[name]["chips"] = self.chips.players[name]
-            if name in self.cards.hands:
-                info[name]["hand"] = self.cards.hands[name]
+            if name in self.cards.players:
+                info[name]["hand"] = self.cards.players[name]
             if name in self.action.players:
                 info[name]["status"] = self.action.players[name]
         # log missing info
         if not self.action.players:
             print(f"[WARNING] Nobody has a status.")
-        if not self.cards.hands:
+        if not self.cards.players:
             print(f"[WARNING] Nobody has a hand.")
         return info
 
     def TableView(self, viewer):
         # initialise info tracker and return it
         info = {"self" : {}, "others" : {}, "game" : {}}
-        for name in self.seats.TrackedPlayers():
+        for name in self.seats.players:
             # add info about viewer
             if viewer == name:
                 info["self"]["seat"] = self.seats.players[name]
                 info["self"]["chips"] = self.chips.players[name]
                 info["self"]["status"] = self.action.players[name]
-                info["self"]["hand"] = self.cards.hands[name]
+                info["self"]["hand"] = self.cards.players[name]
             else:
                 # add info about other players
                 info["others"][name] = {}
@@ -1316,8 +1304,8 @@ class Dealer(object):
                 info["others"][name]["status"] = self.action.players[name]
                 info["others"][name]["hand"] = []
         # add info game circumstances
-        info["game"]["call"] = self.chips.AmountToCall(viewer)
-        info["game"]["pot"] = self.chips.PotTotal()
+        info["game"]["call"] = self.chips.CallAmount(viewer)
+        info["game"]["pot"] = self.chips.PotAmount()
         return info
 
     def KickPlayers(self, names):
@@ -1327,10 +1315,29 @@ class Dealer(object):
         for name in names:
             print(f"[PLAYER] {name} is leaving the table.")
          
+
+    def CalculateRewards(self, player_info):
+        pot = self.chips.PotAmount()
+        # initialise rewards tracker
+        rewards = {}
+        # determine players who have not folded and sort them by hand rank and contribution; ascending 
+        candidates = [name for name in player_info.keys() if not player_info[name]["status"]["has_folded"]]
+        candidates.sort(key = lambda x : (player_info[x]["hand"]["rank_n"], player_info[x]["chips"]["contribution"]))
+        # group players by hand rank
+        groups = groupby(candidates, key = lambda x : player_info[x]["hand"]["rank_n"])
+        # determine rewards per group
+        for rank_n, players in groups:
+            splits = self.chips.SplitContributions(list(players))
+            rewards.update(splits)
+            if sum(rewards.values()) == pot:
+                break
+        # return rewards tracker
+        return rewards
+
     def Payout(self):
         # get data to determine size of rewards
         info = self.PlayerInfo()
-        rewards = self.chips.CalculateRewards(info)
+        rewards = self.CalculateRewards(info)
         # get info to determine order to pay rewards
         showdown = self.action.ShowdownPlayers(self.seats)
         
@@ -1344,10 +1351,10 @@ class Dealer(object):
         mucks = set([])
         i, rank_n = 0, inf
         for name in showdown:
-            if self.cards.hands[name]["rank_n"] <= rank_n:
-                hand = self.cards.hands[name]["cards"]
+            if self.cards.players[name]["rank_n"] <= rank_n:
+                hand = self.cards.Hand(name)
                 print(f"[SHOWDOWN] {name} is holding {hand}")
-                rank_n = self.cards.hands[name]["rank_n"]
+                rank_n = self.cards.players[name]["rank_n"]
             else:
                 print(f"[SHOWDOWN] {name} mucked.")
                 mucks.add(name)
@@ -1356,23 +1363,22 @@ class Dealer(object):
             reward = rewards[name]
             if reward:
                 if name not in mucks:
-                    hand = self.cards.hands[name]["rank_c"]
+                    hand = self.cards.players[name]["rank_c"]
                     print(f"[REWARDS] {name} won {reward} with a {hand}")
                 else:
                     print(f"[REWARDS] {name} got {reward} chips back.")
-                self.chips.RewardChipsPlayer(name, reward)
-        # reset pot contributions
-        self.chips.ClearPot()
 
     def StartingChips(self, amount):
         # give chips to all players
-        for name in self.seats.TrackedPlayers():
-            self.chips.AddChipsPlayer(name, amount)
+        names = self.TrackedPlayers()
+        self.chips.TrackPlayers(names)
+        for name in names:
+            self.chips.Reward(name, amount)
         print(f"[SETUP] All players have been given {amount} chips.")
 
-    def SetAnte(self, amount):
+    def UpdateAnte(self, amount):
         # set ante amount
-        self.chips.SetAnte(amount)
+        self.chips.UpdateAnte(amount)
         print(f"[SETUP] The ante has been set to {amount} chips.")
 
     def TrackedPlayers(self):
@@ -1381,7 +1387,7 @@ class Dealer(object):
 
     def DealingOrder(self):
         # determine order that players should take turns postflop
-        return [occupant for occupant in self.seats if occupant]
+        return list(self.seats)
 
     def PreflopOrder(self):
         # determine order that players should take turns preflop
@@ -1396,7 +1402,7 @@ class Dealer(object):
 
     def Summary(self):
         # log summary of player chips
-        for name in self.seats.TrackedPlayers():
+        for name in self.TrackedPlayers():
             print(f"[STANDINGS] {name} has got {self.chips.players[name]['stack']} chips remaining.")
     
     def SeatPlayers(self, players):
@@ -1442,7 +1448,7 @@ class PlayGame(object):
         self.HUMAN = player
         # initialise table and economy
         self.dealer.InitializeTable([player], self.OPPONENTS, self.CHIPS)
-        self.dealer.SetAnte(self.ANTE)
+        self.dealer.UpdateAnte(self.ANTE)
 
     def NewHand(self):
         # check human has chips
@@ -1516,7 +1522,7 @@ class PlayGame(object):
                 discards = self.dealer.action.SelectDiscards(name, info)
                 if self.dealer.EditHand(name, discards):
                     if name == self.HUMAN and discards:
-                        print(f"[CARDS] Your new hand is {self.dealer.cards.hands[name]['cards']}")
+                        print(f"[CARDS] Your new hand is {self.dealer.cards.players[name]['cards']}")
                     break
         return True
 
@@ -1540,7 +1546,7 @@ class SpectateGame(PlayGame):
         self.dealer = Dealer(len(self.OPPONENTS))
         humans = []
         self.dealer.InitializeTable(humans, self.OPPONENTS, self.CHIPS)
-        self.dealer.SetAnte(self.ANTE)
+        self.dealer.UpdateAnte(self.ANTE)
         self.HUMAN = None
     
     def NewHand(self):
@@ -1548,8 +1554,8 @@ class SpectateGame(PlayGame):
         self.dealer.KickPlayers(self.dealer.SkintPlayers())
 
         # check amount of players remaining
-        if len(self.dealer.seats.TrackedPlayers()) < 2:
-            print(f"[END] {self.dealer.seats.TrackedPlayers()[0]} has won!")
+        if len(self.dealer.TrackedPlayers()) < 2:
+            print(f"[END] {self.dealer.TrackedPlayers()[0]} has won!")
             return False
         
 
