@@ -307,7 +307,7 @@ class HandTracker(object):
 
     def AssignCards(self, name : str, cards : list[Card]):
         """
-        Allocates cards to a player.
+        Allocates additional cards to a player.
 
         Parameters
         ----------
@@ -328,7 +328,7 @@ class HandTracker(object):
 
     def UnassignCards(self, name : str, cards : list[Card]):
         """
-        Unallocates cards from a player.
+        Unallocates specifric cards from a player.
 
         Parameters
         ----------
@@ -928,6 +928,9 @@ class ChipTracker(object):
         self.gameinfo = {"ante" : 0}
         self.players = {}
 
+    def __abs__(self):
+        return sum([self.Contribution(player) + self.Stack(player) for player in self.players])
+
     def TrackPlayers(self, names):
         # initialise player tracking
         self.players = {name : {"stack" : 0, "contribution" : 0 } for name in names}
@@ -955,20 +958,19 @@ class ChipTracker(object):
         # remove chips from players stack
         self.players[name]["stack"] -= amount
 
+    def HasEnough(self, name, amount):
+        # check if player has enough chips
+        return True if amount <= self.players[name]["stack"] else False
+
     def Bet(self, name, amount):
         # remove chips from player
         self.Spend(name, amount)
         # add chips to pot
         self.players[name]["contribution"] += amount
 
-    def HasEnough(self, name, amount):
-        # check if player has enough chips
-        return True if amount <= self.players[name]["stack"] else False
-
     def CallAmount(self, name):
         # calculate how many chips a player needs to contribute, to minimum call
-        contributions = [self.Contribution(player) for player in self.players]
-        return max(contributions) - self.Contribution(name)
+        return self.MaxContribution() - self.Contribution(name)
 
     def BetDetails(self, name, amount):
         # check if bet is players full stack
@@ -979,9 +981,11 @@ class ChipTracker(object):
         if has_mincalled:
             # check if bet is more than the min call amount
             has_raised = True if amount > min_to_call else False
+            has_folded = False
         else:
             # check if player didn't bet anything
             has_folded = True if not amount else False
+            has_raised = False
         return {"has_raised" : has_raised, "has_allin" : has_allin, "has_mincalled" : has_mincalled, "has_folded" : has_folded}
 
     def GatherContributions(self, cap):
@@ -1006,7 +1010,7 @@ class ChipTracker(object):
         contributions = 0
         # accomodate side pots
         names.sort(key = lambda x : self.Contribution(x))
-        for i, name in names:
+        for i, name in enumerate(names):
             # check if total player contribution has been accounted for
             contribution = self.Contribution(name)
             if contribution:
@@ -1053,6 +1057,9 @@ class ChipTracker(object):
 
     def Contribution(self, name):
         return self.players[name]["contribution"]
+
+    def MaxContribution(self):
+        return max([self.players[name]["contribution"] for name in self.players])
 
     def Ante(self):
         # return ante amount 

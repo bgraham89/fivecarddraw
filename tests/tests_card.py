@@ -3,12 +3,12 @@ from fivecarddraw import Card
 
 class CardTest(unittest.TestCase):
     def setUp(self):
-        # implicit deck of cards
+        # create implicit deck of cards
         self.cards = [Card(i, j) for i in range(13) for j in range(4)]
         
 
     def testRepresentation(self):
-        # all cards as strings
+        # create all cards as strings
         strs = [
             "2♠", "2♡", "2♢", "2♣", "3♠", "3♡", "3♢", "3♣", "4♠", "4♡", "4♢", "4♣",
             "5♠", "5♡", "5♢", "5♣", "6♠", "6♡", "6♢", "6♣", "7♠", "7♡", "7♢", "7♣",
@@ -20,7 +20,7 @@ class CardTest(unittest.TestCase):
 
 
     def testEncoding(self):
-        # all cards as integers
+        # create all cards as integers
         ints = [
             69634, 73730, 81922, 98306, 135427, 139523, 147715, 164099, 
             266757, 270853, 279045, 295429, 529159, 533255, 541447, 557831, 
@@ -36,9 +36,8 @@ class CardTest(unittest.TestCase):
     def testEquivalence(self):
         for i in range(13):
             for j in range(4):
-                # card index in deck
+                # calculate duplicate
                 index = i * 4 + j
-                # duplicate copy of card
                 duplicate = Card(i, j)
                 # check each card is equal to a duplicate version
                 self.assertEqual(self.cards[index], duplicate)
