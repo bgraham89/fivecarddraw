@@ -324,12 +324,5 @@ class ChipTrackerTest(unittest.TestCase):
                     self.assertTrue(status["bet_something"]) 
 
 
-
-
-
-
-
-
-
 if __name__ == "__main__":
     unittest.main()
