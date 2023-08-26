@@ -1084,7 +1084,7 @@ class ActionTracker(object):
                 # stop tracking player
                 del self.players[name]
             except KeyError:
-                raise KeyError(f"{names} is not being tracked.")
+                raise KeyError(f"{name} is not being tracked.")
 
     def NewRound(self, names):
         # set players statuses to false
@@ -1119,8 +1119,6 @@ class ActionTracker(object):
                 raise KeyError(f"{name} wasn't being tracked.")
             # kick bot
             self.KickBot(name)
-        # untrack players
-        self.UntrackPlayers(names)
 
     def SelectAmount(self, name, info):
         # determine species and get a bet amount request
@@ -1347,9 +1345,8 @@ class Dealer(object):
         rewards = self.CalculateRewards(info)
         # get info to determine order to pay rewards
         showdown = self.action.ShowdownPlayers(self.seats)
-        
         # check if hand reveal step can be skipped
-        if len(rewards) < 2:
+        if len(showdown) < 2:
             winner = showdown[0]
             print(f"[SHOWDOWN] {winner} won {rewards[winner]} chips.")
             return True
@@ -1367,8 +1364,8 @@ class Dealer(object):
                 mucks.add(name)
         # reward players
         for name in showdown:
-            reward = rewards[name]
-            if reward:
+            if name in rewards:
+                reward = rewards[name]
                 if name not in mucks:
                     hand = self.cards.players[name]["rank_c"]
                     print(f"[REWARDS] {name} won {reward} with a {hand}")
@@ -1399,8 +1396,8 @@ class Dealer(object):
     def PreflopOrder(self):
         # determine order that players should take turns preflop
         name = self.DealingOrder()[2 % len(self.TrackedPlayers())]
-        seat = self.players[name]["seat"]
-        queue = [name for name in self.seats[seat:] + self.seats[:seat] if name]
+        seat = self.seats.players[name]
+        queue = [name for name in self.seats.seats[seat:] + self.seats.seats[:seat] if name]
         # return order that players should take turns preflop
         return queue
 
